@@ -21,11 +21,11 @@ gb.plot_graph()
 # ------- MODIFICATIONS TO THE GROUND TRUTH GRAPH -------
 
 # -- 3. WEIGHTS: Randomly increase/decrease weights ---
-# gm_weights_rnd = GraphModifier(gb)
-# gm_weights_rnd.randomize_weights(num_changes=3)
-# plt.subplot(1, 2, 2)
-# gm_weights_rnd.gb.plot_graph()
-# plt.show()
+gm_weights_rnd = GraphModifier(gb)
+gm_weights_rnd.randomize_weights(num_changes=3)
+plt.subplot(1, 2, 2)
+gm_weights_rnd.gb.plot_graph()
+plt.show()
 
 # -- 4. WEIGHTS: Uniformly shift weights of all edges  ---
 # gm_weights_shifted = GraphModifier(gb)
