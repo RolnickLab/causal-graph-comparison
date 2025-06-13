@@ -1,8 +1,10 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-from cgc.graph_builder import GraphBuilder
-from cgc.graph_modifier import GraphModifier
+import causal_graph_comparison
+from causal_graph_comparison.graph_builder import GraphBuilder
+from causal_graph_comparison.graph_modifier import GraphModifier
 
 # --- INSTRUCTIONS: uncomment the plt.show() below to display graphs ---
 # --- I didn't want to generate an unreadable plot with a dozen subplots
@@ -10,7 +12,8 @@ from cgc.graph_modifier import GraphModifier
 
 
 # --- 1. Build ground truth graph with graph builder ---
-data_path = "../data"
+
+data_path = causal_graph_comparison.DATA_DIR
 chosen_file = 0  # TODO: make this dynamic, e.g. via command line argument, eventually loop through all files
 gb = GraphBuilder(data_path=data_path, file_num=chosen_file)
 
@@ -21,11 +24,11 @@ gb.plot_graph()
 # ------- MODIFICATIONS TO THE GROUND TRUTH GRAPH -------
 
 # -- 3. WEIGHTS: Randomly increase/decrease weights ---
-gm_weights_rnd = GraphModifier(gb)
-gm_weights_rnd.randomize_weights(num_changes=3)
-plt.subplot(1, 2, 2)
-gm_weights_rnd.gb.plot_graph()
-plt.show()
+# gm_weights_rnd = GraphModifier(gb)
+# gm_weights_rnd.randomize_weights(num_changes=3)
+# plt.subplot(1, 2, 2)
+# gm_weights_rnd.gb.plot_graph()
+# plt.show()
 
 # -- 4. WEIGHTS: Uniformly shift weights of all edges  ---
 # gm_weights_shifted = GraphModifier(gb)
@@ -72,11 +75,11 @@ plt.show()
 # plt.show()
 
 # -- 10. ADD EDGE: Randomly add x edges from nodes that already exist to T0 nodes
-# gm_insert_edges = GraphModifier(gb)
-# gm_insert_edges.insert_edges(to_add=2)  # add 2 random edges
-# plt.subplot(1, 2, 2)
-# gm_insert_edges.gb.plot_graph()
-# plt.show()
+gm_insert_edges = GraphModifier(gb)
+gm_insert_edges.insert_edges(to_add=2)  # add 2 random edges
+plt.subplot(1, 2, 2)
+gm_insert_edges.gb.plot_graph()
+plt.show()
 
 # -- 11. ADD NODES: Randomly add x nodes to the graph from nodes that
 # ---- don't already exist in the graph (but are within the time range of the graph) ---
@@ -89,16 +92,14 @@ plt.show()
 # ------ OTHER OPERATIONS ---------
 
 # -- 12. Extract equations from gt & adjacency matrices
-# equations = gb.extract_latent_equations()
-# equations_from_adj = gb.extract_equations_from_adjacency()
-# print("Latent Equations:\n", equations)
-# print("Equations from Adjacency Matrices:\n", equations_from_adj)
+# print("Latent Equations:\n", gb.equations)
+# print("Equations from Adjacency Matrices:\n", gb.adj_equations)
 
 # -- 13. Check if graph is acyclic ---
-# print("Is the graph acyclic?", nx.is_directed_acyclic_graph(gb.G))  # check if G is acyclic
+# print("Is the graph acyclic?", nx.is_directed_acyclic_graph(gb.graph))  # check if G is acyclic
 
 # -- 14. Convert G to wighted dense adjacency matrix using networkx function
-# nx_adjacency_matrix_sparse = nx.adjacency_matrix(gb.G)  # sparse
+# nx_adjacency_matrix_sparse = nx.adjacency_matrix(gb.graph)  # sparse
 # nx_adjacency_matrix_dense = nx_adjacency_matrix_sparse.todense()  # dense
 # print("NetworkX Adjacency Matrix (Sparse):\n", nx_adjacency_matrix_sparse)
 # print("NetworkX Adjacency Matrix (Dense):\n", nx_adjacency_matrix_dense)
