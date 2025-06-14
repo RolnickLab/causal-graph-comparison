@@ -52,11 +52,11 @@ gb.plot_graph()
 # plt.show()
 
 # -- 7. TIME LAG: shift all nodes by time lag --
-# gm_lag_shifted = GraphModifier(gb)
-# gm_lag_shifted.shift_all_nodes_lag(shift_value=1)
-# plt.subplot(1, 2, 2)
-# gm_lag_shifted.gb.plot_graph()
-# plt.show()
+gm_lag_shifted = GraphModifier(gb)
+gm_lag_shifted.shift_all_nodes_lag(shift_value=1)
+plt.subplot(1, 2, 2)
+gm_lag_shifted.gb.plot_graph()
+plt.show()
 
 # -- 8. REMOVE NODES + edge: Remove either specific nodes or random number of nodes --
 # gm_remove_nodes = GraphModifier(gb)
@@ -75,11 +75,11 @@ gb.plot_graph()
 # plt.show()
 
 # -- 10. ADD EDGE: Randomly add x edges from nodes that already exist to T0 nodes
-gm_insert_edges = GraphModifier(gb)
-gm_insert_edges.insert_edges(to_add=2)  # add 2 random edges
-plt.subplot(1, 2, 2)
-gm_insert_edges.gb.plot_graph()
-plt.show()
+# gm_insert_edges = GraphModifier(gb)
+# gm_insert_edges.insert_edges(to_add=2)  # add 2 random edges
+# plt.subplot(1, 2, 2)
+# gm_insert_edges.gb.plot_graph()
+# plt.show()
 
 # -- 11. ADD NODES: Randomly add x nodes to the graph from nodes that
 # ---- don't already exist in the graph (but are within the time range of the graph) ---

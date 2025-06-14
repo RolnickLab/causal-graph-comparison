@@ -47,7 +47,8 @@ class GraphBuilder:
 
     @property
     def list_edges(self) -> List[Tuple[str, str]]:
-        """Get the current list of edges in the graph.
+        """
+        Get the current list of edges in the graph.
         
         Returns:
             List of tuples representing the edges in the graph.

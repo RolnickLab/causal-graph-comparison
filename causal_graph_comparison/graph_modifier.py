@@ -7,6 +7,7 @@ from causal_graph_comparison.utils import get_timelag
 from typing import Union, List, Tuple
 
 # TODO: convert graph to binary
+# TODO: When creating dataset, make sure none of the modified graphs are the same
 
 
 class GraphModifier:
@@ -24,7 +25,8 @@ class GraphModifier:
     """
 
     def __init__(self, gb: GraphBuilder) -> None:
-        """Initialize the GraphModifier with a copy of the GraphBuilder instance.
+        """
+        Initialize the GraphModifier with a copy of the GraphBuilder instance.
 
         Args:
             gb: The GraphBuilder instance to modify.
@@ -32,7 +34,8 @@ class GraphModifier:
         self.gb: GraphBuilder = copy.deepcopy(gb)
 
     def randomize_weights(self, num_changes: int = 1, normal_std: float = 0.1) -> None:
-        """Modify the weights of x edges in graph G by random value.
+        """
+        Modify the weights of x edges in the graph by a random value.
 
         Args:
             num_changes: The number of weights to modify.
@@ -85,7 +88,8 @@ class GraphModifier:
         self.gb.title_suffix = f"Randomly modified {num_changes} edge weights"
 
     def shift_weights(self, shift: float = 0, scale: float = 1) -> None:
-        """Shift the weights of the edges in graph G by an additive and/or multiplicative factor.
+        """
+        Shift the weights of the edges in the graph by an additive and/or multiplicative factor.
 
         Args:
             shift: Value to add to each edge weight.
@@ -122,7 +126,8 @@ class GraphModifier:
             raise ValueError(f"Node {node} does not exist in the graph.")
 
     def randomly_modify_lag(self, num_changes: int = 1) -> None:
-        """Randomly modify the lag of x parent nodes in the graph.
+        """
+        Randomly modify the lag of x parent nodes in the graph.
 
         Args:
             num_changes: The number of nodes to modify.
@@ -154,7 +159,8 @@ class GraphModifier:
         self.gb.title_suffix = f"Randomly modified {num_changes} nodes' lags"
 
     def _get_sorted_nodes(self, shift_value: int) -> List[str]:
-        """Get nodes sorted based on shift direction.
+        """
+        Get nodes sorted based on shift direction.
 
         Args:
             shift_value: The value by which to shift the lags.
@@ -166,7 +172,8 @@ class GraphModifier:
         return sorted(self.gb.used_nodes, key=lambda node: get_timelag(node), reverse=reverse)
 
     def _should_shift_node(self, time_lag: int) -> bool:
-        """Check if a node should be shifted based on its time lag.
+        """
+        Check if a node should be shifted based on its time lag.
 
         Args:
             time_lag: The current time lag of the node.
@@ -177,7 +184,8 @@ class GraphModifier:
         return time_lag < 0
 
     def _calculate_new_lag(self, current_lag: int, shift_value: int) -> int:
-        """Calculate the new lag value after shifting.
+        """
+        Calculate the new lag value after shifting.
 
         Args:
             current_lag: The current time lag.
@@ -190,7 +198,8 @@ class GraphModifier:
         return np.clip(new_lag, -self.gb.max_lag, -1)
 
     def shift_all_nodes_lag(self, shift_value: int = 1) -> None:
-        """Shift all nodes' lags by a specified value.
+        """
+        Shift all nodes' lags by a specified value.
 
         Args:
             shift_value: The value by which to shift the lags.
@@ -209,19 +218,24 @@ class GraphModifier:
 
             new_lag = self._calculate_new_lag(time_lag, shift_value)
 
+            # if new lag is the same as the current lag, don't shift
             if new_lag == time_lag:
+                print(f"Node {node} remains the same")
                 new_used_nodes.add(node)
                 continue
 
             new_node = f"{node_name}, T{new_lag}"
             self.modify_lag(node, new_node)
             new_used_nodes.add(new_node)
+            print(f"Shifting node {node} to node {new_node}")
 
         self.gb.rebuild_dense_graph()
         self.gb.title_suffix = f"Shifted all nodes' lags by {shift_value}"
 
     def delete_empty_nodes(self) -> None:
-        """Remove nodes from graph G that have no incoming or outgoing edges."""
+        """
+        Remove nodes from graph G that have no incoming or outgoing edges.
+        """
         empty_nodes = [
             node
             for node in self.gb.used_nodes
@@ -234,7 +248,8 @@ class GraphModifier:
             print(f"Removed empty node {node}")
 
     def delete_nodes(self, to_delete: Union[int, List[str]], avoid_t0: bool = False) -> None:
-        """Remove a node from the graph G.
+        """
+        Remove a node from the graph G.
 
         Args:
             to_delete: The number of nodes to randomly delete or a list of nodes to specifically delete.
@@ -276,7 +291,8 @@ class GraphModifier:
         self.delete_empty_nodes()
 
     def delete_edges(self, to_delete: Union[int, List[Tuple[str, str]]]) -> None:
-        """Remove specified number of edges from the graph G.
+        """
+        Remove specified number of edges from the graph G.
 
         Args:
             to_delete: The number of edges to randomly delete or a list of edges to specifically delete.
@@ -314,7 +330,8 @@ class GraphModifier:
         self.delete_empty_nodes()
 
     def create_new_weight(self) -> float:
-        """Create a new weight for an edge in the graph.
+        """
+        Create a new weight for an edge in the graph.
 
         Returns:
             New random weight for an edge in the graph based on the mean and std of the existing edge weights.
@@ -330,7 +347,8 @@ class GraphModifier:
         return weight
 
     def insert_edges(self, to_add: int) -> None:
-        """Randomly add specified number of edges to the graph.
+        """
+        Randomly add specified number of edges to the graph.
 
         Args:
             to_add: The number of edges to add.
@@ -368,7 +386,9 @@ class GraphModifier:
         self.gb.title_suffix = f"Inserted {to_add} random edges"
 
     def insert_nodes(self, to_add: int) -> None:
-        """Randomly add a new node in graph G within the time range of the graph (edge to node in T0).
+        """
+        Randomly add a new node in thegraph within the time range of the graph 
+        With an edge to a node in T0.
 
         Args:
             to_add: The number of nodes to add.
