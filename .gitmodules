@@ -1,0 +1,4 @@
+[submodule "climatem"]
+	path = climatem
+	url = git@github.com:RolnickLab/climatem.git
+	branch = chrisdev2
