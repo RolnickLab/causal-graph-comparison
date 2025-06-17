@@ -14,7 +14,7 @@ from causal_graph_comparison.graph_modifier import GraphModifier
 # --- 1. Build ground truth graph with graph builder ---
 
 data_path = causal_graph_comparison.DATA_DIR
-chosen_file = 0  # TODO: make this dynamic, e.g. via command line argument, eventually loop through all files
+chosen_file = 1  # TODO: make this dynamic, e.g. via command line argument, eventually loop through all files
 gb = GraphBuilder(data_path=data_path, file_num=chosen_file)
 
 # -- 2.  Visualize the flattened ground truth temporal graph  --
@@ -52,11 +52,11 @@ gb.plot_graph()
 # plt.show()
 
 # -- 7. TIME LAG: shift all nodes by time lag --
-gm_lag_shifted = GraphModifier(gb)
-gm_lag_shifted.shift_all_nodes_lag(shift_value=1)
-plt.subplot(1, 2, 2)
-gm_lag_shifted.gb.plot_graph()
-plt.show()
+# gm_lag_shifted = GraphModifier(gb)
+# gm_lag_shifted.shift_all_nodes_lag(shift_value=1)
+# plt.subplot(1, 2, 2)
+# gm_lag_shifted.gb.plot_graph()
+# plt.show()
 
 # -- 8. REMOVE NODES + edge: Remove either specific nodes or random number of nodes --
 # gm_remove_nodes = GraphModifier(gb)
@@ -83,11 +83,11 @@ plt.show()
 
 # -- 11. ADD NODES: Randomly add x nodes to the graph from nodes that
 # ---- don't already exist in the graph (but are within the time range of the graph) ---
-# gm_insert_nodes = GraphModifier(gb)
-# gm_insert_nodes.insert_nodes(to_add=3)  # add 2 random nodes
-# plt.subplot(1, 2, 2)
-# gm_insert_nodes.gb.plot_graph()
-# plt.show()
+gm_insert_nodes = GraphModifier(gb)
+gm_insert_nodes.insert_nodes(to_add=3)  # add 2 random nodes
+plt.subplot(1, 2, 2)
+gm_insert_nodes.gb.plot_graph()
+plt.show()
 
 # ------ OTHER OPERATIONS ---------
 
