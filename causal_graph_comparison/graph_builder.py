@@ -70,6 +70,8 @@ class GraphBuilder:
 
         data_dict = {}
 
+        print(f"Extracting data from file: {files[self.file_num]}")
+
         with open(join(self.data_path, files[self.file_num]), "r") as f:
             for line in csv.DictReader(f):
                 data_dict[line["Parameter"]] = line["Value"]
