@@ -9,7 +9,7 @@ from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 # from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import wandb
-from causal_graph_comparison import CONFIGS_PATH, DATA_DIR, APP_ROOT, PROJECT_ROOT, SCRIPTS_DIR
+from causal_graph_comparison import CONFIGS_PATH, DATA_DIR, APP_ROOT, MODELS_DIR, PROJECT_ROOT, SCRATCH_DIR, SCRIPTS_DIR
 from datetime import datetime
 from causal_graph_comparison.utils import flatten_data_target
 
@@ -50,8 +50,8 @@ wandb.init(
 )
 
 class Net(nn.Module):
-    def __init__(self, latitude, longitude, future_timesteps, tau, layers):
-        super(Net, self).__init__()
+    def __init__(self, layers):
+        super().__init__()
 
         activation = nn.LeakyReLU
         num_layers = len(layers)
@@ -156,7 +156,7 @@ dl = CausalClimateDataModule(
     seed=42,
     seq_len=12,
     data_dir="",  # Not used for SAVAR
-    output_save_dir=f"{Path.home()}/scratch/data/SAVAR_DATA_TEST",
+    output_save_dir=f"{SCRATCH_DIR}/data/SAVAR_DATA_TEST",
     num_ensembles=1,
     lon=LONGITUDE,
     lat=LATITUDE,
@@ -186,7 +186,7 @@ val_dataset = dl._data_val
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-model = Net(LATITUDE, LONGITUDE, FUTURE_TIMESTEPS, TAU, LAYERS).to(device)
+model = Net(LAYERS).to(device)
 
 optimizer = optim.Adadelta(model.parameters(), lr=LEARNING_RATE)
 
@@ -204,4 +204,4 @@ for epoch in range(1, EPOCHS + 1):
 
     if SAVE_MODEL:
         # TODO: save best model & config
-        torch.save(model, f"../models/savar_mlp-{timestamp}.pt")
+        torch.save(model, f"{MODELS_DIR}/savar_mlp-{timestamp}.pt")
