@@ -6,7 +6,7 @@ setup(
     description="Causal graph comparison for climate models",
     author="Christina Isaicu",
     author_email="c.isaicu@gmail.com",
-    packages=["causal_graph_comparison"],  # same as name
+    packages=["causal_graph_comparison", "climatem.climatem"],  # include the nested climatem package
     install_requires=[
         "numpy",
         "networkx",

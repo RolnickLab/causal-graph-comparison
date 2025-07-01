@@ -21,3 +21,6 @@ def binarize_array(array: np.ndarray) -> np.ndarray:
         The binarized array.
     """
     return (array > 0).astype(np.int8)
+
+def flatten_data_target(data, target, input_size, output_size):
+    return data.view(-1, input_size), target.view(-1, output_size)
