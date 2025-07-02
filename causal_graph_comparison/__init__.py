@@ -11,9 +11,14 @@ PROJECT_ROOT = APP_ROOT.parent
 DATA_DIR = PROJECT_ROOT / "data"
 CONFIGS_PATH = PROJECT_ROOT / "configs"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+MODELS_DIR = PROJECT_ROOT / "models"
 
-# TODO: if os is mac, find dif scratch path vs linux
-if sys.platform == "darwin":
-    SCRATCH_DIR = PROJECT_ROOT.parent.parent / "scratch"
+OUTPUTS_DIR = PROJECT_ROOT / "outputs"
+
+# TODO: if os is mac, find different scratch path vs linux
+if sys.platform == "linux":
+    SCRATCH_DIR = Path.home() / "scratch"
+    print("Detected Linux system, using scratch directory: ", SCRATCH_DIR)
 else:
-    SCRATCH_DIR = PROJECT_ROOT.parent.parent / "scratch"
+    SCRATCH_DIR = PROJECT_ROOT.parent / "scratch" # hardcoded for Christina's local machine
+    print("Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
