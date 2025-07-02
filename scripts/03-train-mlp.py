@@ -10,7 +10,7 @@ from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 # from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import wandb
-from causal_graph_comparison import CONFIGS_PATH, DATA_DIR, APP_ROOT, MODELS_DIR, PROJECT_ROOT, SCRATCH_DIR, SCRIPTS_DIR
+from causal_graph_comparison import CONFIGS_PATH, DATA_DIR, APP_ROOT, MODELS_DIR, MODELS_DIR, PROJECT_ROOT, SCRATCH_DIR, SCRATCH_DIR, SCRIPTS_DIR
 from datetime import datetime
 from causal_graph_comparison.utils import flatten_data_target
 

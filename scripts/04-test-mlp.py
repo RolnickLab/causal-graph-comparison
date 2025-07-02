@@ -28,7 +28,6 @@ TAU = 5
 LAYERS = [1600, 800, 1600]
 INPUT_SIZE = LATITUDE * LONGITUDE * TAU
 OUTPUT_SIZE = LATITUDE * LONGITUDE * FUTURE_TIMESTEPS
-OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def test(model, device, test_loader):
 
@@ -134,7 +133,6 @@ dl.setup()
 val_dataset = dl._data_val
 
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False)
-
 
 model = torch.load(f"{MODELS_DIR}/savar_mlp-{TIMESTAMP}.pt", map_location=device)
 
