@@ -2,8 +2,18 @@
 
 ## Installation
 
+**Requires python version 3.11 and the `poetry` management tool**
+
+To install poetry : https://python-poetry.org/docs/#installation
+
 ```python
-pip install -e . # Install the package in editable mode
+poetry install --with dev
+```
+
+To check QA
+
+```python
+nox -s precommit
 ```
 
 ## Usage instructions
