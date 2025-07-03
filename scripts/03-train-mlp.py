@@ -1,17 +1,16 @@
-import argparse
-from pathlib import Path
-from collections import OrderedDict
+from datetime import datetime
+
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from causal_graph_comparison.mlp import Net
+import wandb
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
+
 # from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
-import wandb
-from causal_graph_comparison import CONFIGS_PATH, DATA_DIR, APP_ROOT, MODELS_DIR, MODELS_DIR, PROJECT_ROOT, SCRATCH_DIR, SCRATCH_DIR, SCRIPTS_DIR
-from datetime import datetime
+
+from causal_graph_comparison import MODELS_DIR, SCRATCH_DIR
+from causal_graph_comparison.mlp import Net
 from causal_graph_comparison.utils import flatten_data_target
 
 # Training settings
@@ -47,8 +46,9 @@ wandb.init(
         "longitude": LONGITUDE,
         "seed": SEED,
         "gamma": GAMMA,
-    }
+    },
 )
+
 
 def train(log_interval, dry_run, model, device, train_loader, optimizer, epoch):
     model.train()
@@ -60,14 +60,20 @@ def train(log_interval, dry_run, model, device, train_loader, optimizer, epoch):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        loss = F.mse_loss(output, target) 
+        loss = F.mse_loss(output, target)
         loss.backward()
         optimizer.step()
         wandb.log({"loss_train": loss.item() / len(data)})
         if batch_idx % log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
+            print(
+                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                    epoch,
+                    batch_idx * len(data),
+                    len(train_loader.dataset),
+                    100.0 * batch_idx / len(train_loader),
+                    loss.item(),
+                )
+            )
             if dry_run:
                 break
 
@@ -87,8 +93,9 @@ def test(model, device, test_loader):
 
     test_loss /= len(test_loader.dataset)
 
-    print(f'\nTest set: Average loss: {test_loss:.4f}\n')
+    print(f"\nTest set: Average loss: {test_loss:.4f}\n")
     wandb.log({"loss_valid": test_loss})
+
 
 use_accel = not NO_ACCEL and torch.cuda.is_available()
 
@@ -99,12 +106,10 @@ if use_accel:
 else:
     device = torch.device("cpu")
 
-train_kwargs = {'batch_size': BATCH_SIZE}
-test_kwargs = {'batch_size': TEST_BATCH_SIZE}
+train_kwargs = {"batch_size": BATCH_SIZE}
+test_kwargs = {"batch_size": TEST_BATCH_SIZE}
 if use_accel:
-    accel_kwargs = {'num_workers': 1,
-                    'pin_memory': True,
-                    'shuffle': True}
+    accel_kwargs = {"num_workers": 1, "pin_memory": True, "shuffle": True}
     train_kwargs.update(accel_kwargs)
     test_kwargs.update(accel_kwargs)
 

@@ -1,6 +1,4 @@
-import networkx as nx
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 import causal_graph_comparison
 from causal_graph_comparison.graph_builder import GraphBuilder

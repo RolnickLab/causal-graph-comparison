@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # APP_ROOT is the src/ folder in the lab template, resolved based on the full path of the __init__.py file
 APP_ROOT = Path(__file__).resolve().parent
@@ -20,5 +20,5 @@ if sys.platform == "linux":
     SCRATCH_DIR = Path.home() / "scratch"
     print("Detected Linux system, using scratch directory: ", SCRATCH_DIR)
 else:
-    SCRATCH_DIR = PROJECT_ROOT.parent / "scratch" # hardcoded for Christina's local machine
+    SCRATCH_DIR = PROJECT_ROOT.parent / "scratch"  # hardcoded for Christina's local machine
     print("Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)

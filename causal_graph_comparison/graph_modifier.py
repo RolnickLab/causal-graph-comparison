@@ -1,10 +1,12 @@
-import numpy as np
-import networkx as nx
 import copy
-from random import randint, random, sample
+from random import sample
+from typing import List, Tuple, Union
+
+import networkx as nx
+import numpy as np
+
 from causal_graph_comparison.graph_builder import GraphBuilder
 from causal_graph_comparison.utils import get_timelag
-from typing import Union, List, Tuple
 
 # TODO: convert graph to binary
 # TODO: When creating dataset, make sure none of the modified graphs are the same
@@ -13,6 +15,7 @@ from typing import Union, List, Tuple
 class GraphModifier:
     """
     A class to modify the graph G built by GraphBuilder.
+
     Modifications include:
     - Randomly modifying edge weights
     - Shifting all edge weights by a multiplicative and/or additive factor
@@ -109,7 +112,8 @@ class GraphModifier:
         self.gb.title_suffix = f"Shifted all edge weights by {shift} and scaled by {scale}"
 
     def modify_lag(self, node: str, new_node: str) -> None:
-        """Modify the lag of a specific node in the graph by replacing it with the same node value at a different time lag.
+        """
+        Modify the lag of a specific node in the graph by replacing it with the same node value at a different time lag.
 
         Args:
             node: The node whose lag will be modified.
@@ -233,9 +237,7 @@ class GraphModifier:
         self.gb.title_suffix = f"Shifted all nodes' lags by {shift_value}"
 
     def delete_empty_nodes(self) -> None:
-        """
-        Remove nodes from graph G that have no incoming or outgoing edges.
-        """
+        """Remove nodes from graph G that have no incoming or outgoing edges."""
         empty_nodes = [
             node
             for node in self.gb.used_nodes
@@ -387,8 +389,7 @@ class GraphModifier:
 
     def insert_nodes(self, to_add: int) -> None:
         """
-        Randomly add a new node in thegraph within the time range of the graph 
-        With an edge to a node in T0.
+        Randomly add a new node in thegraph within the time range of the graph With an edge to a node in T0.
 
         Args:
             to_add: The number of nodes to add.

@@ -1,11 +1,11 @@
-from os import listdir
-from os.path import isfile, join
-from pathlib import Path
 import csv
-import numpy as np
-import networkx as nx
-import matplotlib.pyplot as plt
+from os.path import join
+from pathlib import Path
 from typing import List, Tuple
+
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 
 
 class GraphBuilder:
@@ -49,7 +49,7 @@ class GraphBuilder:
     def list_edges(self) -> List[Tuple[str, str]]:
         """
         Get the current list of edges in the graph.
-        
+
         Returns:
             List of tuples representing the edges in the graph.
         """
@@ -82,7 +82,8 @@ class GraphBuilder:
         self.gt = eval(data_dict["links_coeffs"])
 
     def _extract_gt_adjacency_matrix(self):
-        """Extract the ground truth adjacency matrices for each time lag from the links_coeffs.
+        """
+        Extract the ground truth adjacency matrices for each time lag from the links_coeffs.
 
         Returns:
             The ground truth adjacency matrices (tau x N x N), where each matrix corresponds to a different time lag.
@@ -132,7 +133,8 @@ class GraphBuilder:
         self.equations = equations
 
     def _extract_equations_from_adjacency(self) -> dict:
-        """Extract equations for each latent variable based on the adjacency matrices.
+        """
+        Extract equations for each latent variable based on the adjacency matrices.
 
         Returns:
             Dictionary where keys are source nodes and values are equations in string format.
@@ -166,6 +168,7 @@ class GraphBuilder:
     def rebuild_dense_graph(self) -> None:
         """
         Make the graph dense by adding nodes for each latent variable and time lag.
+
         Purpose is to ensure adjacency matrix remains consistent after modifications
         [N0 T-2, N1 T-1, N1 T0], [N1 T-2, N1 T-1, N1 T0] ... etc.
         """
@@ -181,9 +184,7 @@ class GraphBuilder:
                     self.graph.add_node(node_name)
 
     def _build_graph(self) -> None:
-        """
-        Build a flattened temporal graph from the ground truth links_coeffs.
-        """
+        """Build a flattened temporal graph from the ground truth links_coeffs."""
 
         print("Building flattened temporal graph from ground truth links_coeffs...\n")
 

@@ -1,19 +1,11 @@
-import argparse
-from pathlib import Path
-from collections import OrderedDict
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 import numpy as np
+import torch
+import torch.nn.functional as F
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
+
 # from torchvision import datasets, transforms
-from torch.optim.lr_scheduler import StepLR
-import wandb
-from causal_graph_comparison import CONFIGS_PATH, DATA_DIR, APP_ROOT, PROJECT_ROOT, SCRIPTS_DIR, OUTPUTS_DIR, SCRATCH_DIR, MODELS_DIR
-from datetime import datetime
+from causal_graph_comparison import MODELS_DIR, OUTPUTS_DIR, SCRATCH_DIR
 from causal_graph_comparison.utils import flatten_data_target
-from causal_graph_comparison.mlp import Net
 
 TIMESTAMP = "2025_07_01_19_03_57"
 
@@ -28,6 +20,7 @@ TAU = 5
 LAYERS = [1600, 800, 1600]
 INPUT_SIZE = LATITUDE * LONGITUDE * TAU
 OUTPUT_SIZE = LATITUDE * LONGITUDE * FUTURE_TIMESTEPS
+
 
 def test(model, device, test_loader):
 
@@ -51,11 +44,11 @@ def test(model, device, test_loader):
                 data_list.append(data[i].cpu().numpy())
                 target_list.append(target[i].cpu().numpy())
                 output_list.append(output[i].cpu().numpy())
-            
+
             test_loss += F.mse_loss(output, target).item()  # sum up batch loss
 
     test_loss /= len(test_loader.dataset)
-    
+
     data_array = np.array(data_list)
     target_array = np.array(target_list)
     output_array = np.array(output_list)
@@ -64,9 +57,12 @@ def test(model, device, test_loader):
     print("Target array shape: ", target_array.shape)
     print("Output array shape: ", output_array.shape)
 
-    np.savez(OUTPUTS_DIR / f"test_results-{TIMESTAMP}.npz", inputs=data_array, target=target_array, outputs=output_array)
+    np.savez(
+        OUTPUTS_DIR / f"test_results-{TIMESTAMP}.npz", inputs=data_array, target=target_array, outputs=output_array
+    )
 
-    print(f'\nTest set: Average loss: {test_loss:.4f}\n')
+    print(f"\nTest set: Average loss: {test_loss:.4f}\n")
+
 
 use_accel = not NO_ACCEL and torch.cuda.is_available()
 
@@ -77,11 +73,9 @@ if use_accel:
 else:
     device = torch.device("cpu")
 
-test_kwargs = {'batch_size': TEST_BATCH_SIZE}
+test_kwargs = {"batch_size": TEST_BATCH_SIZE}
 if use_accel:
-    accel_kwargs = {'num_workers': 1,
-                    'pin_memory': True,
-                    'shuffle': True}
+    accel_kwargs = {"num_workers": 1, "pin_memory": True, "shuffle": True}
     test_kwargs.update(accel_kwargs)
 
 dl = CausalClimateDataModule(
@@ -137,4 +131,3 @@ val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=TEST_BATCH_SIZE
 model = torch.load(f"{MODELS_DIR}/savar_mlp-{TIMESTAMP}.pt", map_location=device)
 
 test(model, device, val_loader)
-

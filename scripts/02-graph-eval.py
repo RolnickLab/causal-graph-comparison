@@ -1,8 +1,5 @@
 import networkx as nx
-import matplotlib.pyplot as plt
-from pathlib import Path
-import gadjid
-from gadjid import example, ancestor_aid, oset_aid, parent_aid, shd, sid
+from gadjid import ancestor_aid, shd, sid
 
 import causal_graph_comparison
 from causal_graph_comparison.graph_builder import GraphBuilder
