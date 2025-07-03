@@ -14,6 +14,7 @@ climatem = {git = "git@github.com:RolnickLab/climatem.git", rev = "chrisdev2"}
 # matplotlib and numpy dependencies
 matplotlib = "~3.8.0"
 numpy = "<1.27"
+wandb = "^0.21.0"
 
 [tool.poetry.group.dev]
 optional = true
