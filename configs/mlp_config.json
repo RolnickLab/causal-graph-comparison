@@ -1,0 +1,36 @@
+{
+    "model_params": {
+        "hidden_sizes": [1024, 512, 256],
+        "num_features": 1600,
+        "save_model": true,
+        "no_accel": false,
+        "dry_run": false,
+        "log_interval": 10
+    },
+    "training_params": {
+        "num_epochs": 100,
+        "batch_size": 128,
+        "learning_rate": 1.0, 
+        "patience": 15,
+        "val_split": 0.2,
+        "gamma": 0.7
+    },
+    "test_params": {
+        "test_batch_size": 1000,
+        "no_accel": false,
+        "seed": 1
+    },
+    "data_params_source": {
+        "type": "config",
+        "path": "$SCRATCH/data/SAVAR_DATA_TEST/modes_4_tl_10000_isforced_False_difficulty_med_easy_noisestrength_0.2_seasonality_False_overlap_False_config.json",
+        "timestamp": "2025_07_01_19_03_57"
+    },
+    "exp_params": {
+        "exp_path": "$SCRATCH/mlp_training_results",
+        "random_seed": 42,
+        "gpu": true,
+        "num_workers": 0,
+        "pin_memory": false,
+        "verbose": true
+    }
+} 

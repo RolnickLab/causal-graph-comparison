@@ -20,5 +20,5 @@ if sys.platform == "linux":
     SCRATCH_DIR = Path.home() / "scratch"
     print("Detected Linux system, using scratch directory: ", SCRATCH_DIR)
 else:
-    SCRATCH_DIR = PROJECT_ROOT.parent / "scratch" # hardcoded for Christina's local machine
+    SCRATCH_DIR = PROJECT_ROOT.parent / "scratch"  # hardcoded for Christina's local machine
     print("Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
