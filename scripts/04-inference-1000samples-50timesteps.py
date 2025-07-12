@@ -18,10 +18,9 @@ from datetime import datetime
 from causal_graph_comparison.utils import flatten_data_target
 from causal_graph_comparison.mlp import Net
 import glob
-TIMESTAMP = "2025_07_10_00_04_54"
 
 # Test settings
-TEST_BATCH_SIZE = 1
+TEST_BATCH_SIZE = 1000
 NO_ACCEL = False
 SEED = 1
 FUTURE_TIMESTEPS = 1
@@ -46,7 +45,7 @@ def inference(model, device, test_loader):
         # get first batch
         data, target = next(iter(test_loader))
 
-        for x in data[0]:
+        for x in data:
             data_list.append(x.squeeze().cpu().numpy())
         data = data.to(device)
 
@@ -69,25 +68,34 @@ def inference(model, device, test_loader):
             output_list.append(output.squeeze().cpu().numpy())
 
             data = torch.roll(data, shifts=-1, dims=1)
-            data[:, -1] = output
+            data[:, -1, 0] = output
 
-    for i, (data, target) in enumerate(test_loader):
-        target_list.append(target.squeeze().cpu().numpy())
-        if i == ROLLOUT_TIMESTEPS - 1:
-            break
+    # for i, (data, target) in enumerate(test_loader):
+    #     print ("target: ", target.shape) # [999, 1, 1, 1600]
+    #     print ("data: ", data.shape)
+        
+        
+    #     target_list.append(target.squeeze().cpu().numpy())
+    #     if i == ROLLOUT_TIMESTEPS - 1:
+    #         break
 
+        target_list = []
+        for i in range(ROLLOUT_TIMESTEPS):
+            target_list.append(target[i:999-ROLLOUT_TIMESTEPS+i].squeeze().cpu().numpy())
+        
+        
         
     # Convert lists to arrays
-    data_array = np.array(data_list)
+    data_array = np.array(data_list)[:999-ROLLOUT_TIMESTEPS]
     target_array = np.array(target_list)
-    output_array = np.array(output_list)
+    output_array = np.array(output_list)[:,:999-ROLLOUT_TIMESTEPS]
 
     print("Data array shape: ", data_array.shape)
     print("Target array shape: ", target_array.shape)
     print("Output array shape: ", output_array.shape)
 
     np.savez(
-        OUTPUTS_DIR / f"test_results-mlp-savar.npz", 
+        OUTPUTS_DIR / f"test_results-mlp-savar-1000samples-50steps.npz", 
         inputs=data_array, 
         target=target_array, 
         outputs=output_array

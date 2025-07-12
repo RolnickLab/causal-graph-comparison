@@ -20,7 +20,7 @@ pip install -e . # Install the package in editable mode
 - [x] run inference on PICABU (rolloutbf.py)
 - [ ] run models with multiple seeds
 - [x] show that we can recover ground truth graph using pcmci on 1000 time steps
-- [ ] show that we can recover ground truth graph using pcmci on 50 time steps
+- [x] show that we can recover ground truth graph using pcmci on 50 time steps
 
 - [ ] create inference script to run teacher forcing so we learn graph on input/ouptut pairs
  

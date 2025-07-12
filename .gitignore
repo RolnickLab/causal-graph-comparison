@@ -166,3 +166,4 @@ wandb/
 # models
 models/
 
+outputs/*.npz
