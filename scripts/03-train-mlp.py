@@ -8,21 +8,12 @@ import torch.optim as optim
 from causal_graph_comparison.mlp import Net
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison.utils import get_json_config
+from causal_graph_comparison.test_dataset import SineTestDataset
 
 # from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import wandb
-from causal_graph_comparison import (
-    CONFIGS_PATH,
-    DATA_DIR,
-    APP_ROOT,
-    MODELS_DIR,
-    MODELS_DIR,
-    PROJECT_ROOT,
-    SCRATCH_DIR,
-    SCRATCH_DIR,
-    SCRIPTS_DIR,
-)
+from causal_graph_comparison import *
 from datetime import datetime
 from causal_graph_comparison.utils import flatten_data_target
 
@@ -30,7 +21,7 @@ from causal_graph_comparison.utils import flatten_data_target
 BATCH_SIZE = 128
 TEST_BATCH_SIZE = 1000
 EPOCHS = 100
-LEARNING_RATE = 1.0
+LEARNING_RATE = 0.0001
 GAMMA = 0.7
 NO_ACCEL = False
 DRY_RUN = False
@@ -44,6 +35,11 @@ TAU = 5
 LAYERS = [1600, 800, 1600]
 INPUT_SIZE = LATITUDE * LONGITUDE * TAU
 OUTPUT_SIZE = LATITUDE * LONGITUDE * FUTURE_TIMESTEPS
+
+# SINE DATASET TESTING
+# LAYERS = [30, 20, 10]
+# INPUT_SIZE = 30
+# OUTPUT_SIZE = 1
 
 wandb.init(
     project="climatem",
@@ -109,6 +105,8 @@ def test(model, device, test_loader):
     print(f"\nTest set: Average loss: {test_loss:.4f}\n")
     wandb.log({"loss_valid": test_loss})
 
+    return test_loss
+
 
 config_dict = get_json_config("mlp_config.json")
 # TODO get config params
@@ -129,6 +127,19 @@ if use_accel:
     accel_kwargs = {"num_workers": 1, "pin_memory": True, "shuffle": True}
     train_kwargs.update(accel_kwargs)
     test_kwargs.update(accel_kwargs)
+
+# =======  Test dataset =======
+
+# print ("==== USING SINE TEST DATASET ====")
+# dataset_train = SineTestDataset(num_samples=1000)
+# dataset_test = SineTestDataset(num_samples=1000, test=True)
+
+# train_loader = torch.utils.data.DataLoader(dataset_train, batch_size=32, shuffle=True)
+# test_loader = torch.utils.data.DataLoader(dataset_test, batch_size=100, shuffle=False)
+
+# =======  SAVAR dataset =======
+
+print("==== USING SAVAR DATASET ====")
 
 dl = CausalClimateDataModule(
     # Required parameters for ClimateDataModule
@@ -178,27 +189,32 @@ dl = CausalClimateDataModule(
 dl.setup()
 
 train_dataset = dl._data_train
-val_dataset = dl._data_val
+test_dataset = dl._data_val
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+# ============ RUN TRAINING ============
 
 model = Net(input_size=INPUT_SIZE, output_size=OUTPUT_SIZE, layers=LAYERS).to(device)
 
-optimizer = optim.Adadelta(model.parameters(), lr=LEARNING_RATE)
+optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 scheduler = StepLR(optimizer, step_size=1, gamma=GAMMA)
 
 # basline test with untrained model
-test(model, device, val_loader)
+best_test_loss = test(model, device, test_loader)
 
 timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
 for epoch in range(1, EPOCHS + 1):
     train(LOG_INTERVAL, DRY_RUN, model, device, train_loader, optimizer, epoch)
-    test(model, device, val_loader)
+    test_loss = test(model, device, test_loader)
     scheduler.step()
 
     if SAVE_MODEL:
-        # TODO: save best model & config
+
+        if test_loss < best_test_loss:
+            best_test_loss = test_loss
+            torch.save(model, f"{MODELS_DIR}/savar_mlp-best-{timestamp}.pt")
         torch.save(model, f"{MODELS_DIR}/savar_mlp-{timestamp}.pt")
