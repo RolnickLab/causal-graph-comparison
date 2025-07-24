@@ -8,7 +8,7 @@ import torch.optim as optim
 import numpy as np
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison.lstm import Lstm_sine
-from causal_graph_comparison.test_dataset import SineTestDataset
+from causal_graph_comparison.test_dataloader import SineTestDataset
 import matplotlib.pyplot as plt
 
 # from torchvision import datasets, transforms

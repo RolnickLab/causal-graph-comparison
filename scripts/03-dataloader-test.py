@@ -56,7 +56,7 @@ dl = CausalClimateDataModule(
     reload_climate_set_data=True,
     # Required parameters for CausalClimateDataModule
     tau=5,
-    future_timesteps=5,
+    future_timesteps=1,
     num_months_aggregated=1,
     train_val_interval_length=100,
     # SAVAR specific parameters
@@ -82,8 +82,6 @@ print("\nInitial shapes:")
 print("Input shape:", x.shape)
 print("Target shape:", y.shape)
 
-
-
 for i in range(5):
     plt.subplot(2,5,i+1)
     img = x[i,0,:].reshape(40,40)
@@ -91,11 +89,11 @@ for i in range(5):
     plt.colorbar()
 # plt.show()
 
-for i in range(5):
-    plt.subplot(2,5,i+1+5)
-    img = y[0,i,:].reshape(40,40)
-    plt.imshow(img)
-    plt.colorbar()
+
+plt.subplot(2,5,i+1+5)
+img = y[0,0,:].reshape(40,40)
+plt.imshow(img)
+plt.colorbar()
 plt.show()
 
 # Print dataset sizes

@@ -11,7 +11,6 @@ PROJECT_ROOT = APP_ROOT.parent
 DATA_DIR = PROJECT_ROOT / "data"
 CONFIGS_PATH = PROJECT_ROOT / "configs"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
-MODELS_DIR = PROJECT_ROOT / "models"
 
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
@@ -22,3 +21,5 @@ if sys.platform == "linux":
 else:
     SCRATCH_DIR = PROJECT_ROOT.parent / "scratch"  # hardcoded for Christina's local machine
     print("Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
+
+MODELS_DIR = SCRATCH_DIR / "cgc" / "models"

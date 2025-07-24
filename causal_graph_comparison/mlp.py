@@ -2,6 +2,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
+# TODO: make mlp accept (batch_size, 5, 1, 1600) 
 
 class Net(nn.Module):
     def __init__(self, input_size, output_size, layers):
@@ -26,3 +27,13 @@ class Net(nn.Module):
     def forward(self, x):
         output = self.model(x)
         return output
+
+if __name__ == "__main__":
+
+    mlp = Net(input_size=1600, output_size=1600, layers=[1600, 1600, 1600])
+    input = torch.randn(32, 5, 1, 1600)
+    output = mlp(input)
+    print(f"input shape: {input.shape}")
+    print(f"output shape: {output.shape}")
+
+    print("=" * 100)

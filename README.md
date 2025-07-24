@@ -81,5 +81,6 @@ After running PCMCI, run:
 ### NEXT STEPS
 - [x] Set particle filter to 1
 - [x] rewrite save npy script to save trajectory only to one file
-- [ ] SAVE W (learned causal graph)
-- [ ] is gradient descent not being seeded properly??
+- [x] find learned causal graph (graphs.npz)
+- [x] is gradient descent not being seeded properly??
+- [ ] make sure mlp, cnn, lstm all take in same input shape

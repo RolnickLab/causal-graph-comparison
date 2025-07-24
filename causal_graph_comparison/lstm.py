@@ -9,6 +9,8 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from torchvision import datasets, transforms
 
+# TODO: make lstm accept (batch_size, 5, 1, 1600)  
+
 
 class Lstm(nn.Module):
     def __init__(self, input_size=1600, hidden_size=800, num_layers=3):

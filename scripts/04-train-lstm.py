@@ -9,7 +9,7 @@ from causal_graph_comparison.lstm import Lstm_sine, Lstm
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison.utils import get_json_config
 from causal_graph_comparison import *
-from causal_graph_comparison.test_dataset import SineTestDataset
+from causal_graph_comparison.test_dataloader import SineTestDataset
 from causal_graph_comparison.utils import flatten_data_target
 
 # from torchvision import datasets, transforms
@@ -153,7 +153,7 @@ def test(model, device, test_loader):
     return test_loss
 
 
-config_dict = get_json_config("mlp_config.json")
+config_dict = get_json_config("lstm_config.json")
 # TODO get config params
 
 

@@ -8,8 +8,9 @@ import torch.optim as optim
 import numpy as np
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison.lstm import Lstm_sine
-from causal_graph_comparison.test_dataset import SineTestDataset
+from causal_graph_comparison.test_dataloader import SineTestDataset
 import matplotlib.pyplot as plt
+
 # from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import wandb
@@ -19,8 +20,10 @@ from causal_graph_comparison.utils import flatten_data_target
 from causal_graph_comparison.mlp import Net
 import glob
 
+TIMESTAMP = "2025_07_10_00_04_54"
+
 # Test settings
-TEST_BATCH_SIZE = 1000
+TEST_BATCH_SIZE = 1
 NO_ACCEL = False
 SEED = 1
 FUTURE_TIMESTEPS = 1
@@ -45,82 +48,46 @@ def inference(model, device, test_loader):
         # get first batch
         data, target = next(iter(test_loader))
 
-        for x in data:
+        for x in data[0]:
             data_list.append(x.squeeze().cpu().numpy())
         data = data.to(device)
 
         # Flatten data for MLP sine data: (batch, seq_len, features) -> (batch, seq_len*features)
         # data = data.view(data.shape[0], -1)
-        
+
         predictions = []
         h0 = None
         c0 = None
         for step in range(ROLLOUT_TIMESTEPS):
-            print("Step: ", step)
+            # print("step: ", step)
             # ======== LSTM ========
             # drop 3rd dimension for savar data
-            
-            data = data.squeeze(2)
-            output, h0, c0 = model(data, h0=h0, c0=c0)
-            # print("LSTM =================================")
-            # print("Data before squeeze: ", data.shape)
-            # print("output: ", output.shape)
-            # print("Data: ", data.shape)
-            
-            # Debug: Check output statistics
-            # print(f"Output stats - min: {output.min().item():.4f}, max: {output.max().item():.4f}, mean: {output.mean().item():.4f}, std: {output.std().item():.4f}")
+            # data = data.squeeze(2)
+            # output, h0, c0 = model(data, h0=h0, c0=c0)
 
             # ======== MLP ========
-            # print("MLP =================================")
-            # output = model(data.view(data.shape[0], -1))
-            
+            output = model(data.view(data.shape[0], -1))
+
             output_list.append(output.squeeze().cpu().numpy())
 
             data = torch.roll(data, shifts=-1, dims=1)
-            # print("Data after roll: ", data.shape)
+            data[:, -1] = output
 
-            # MLP
-            # data[:, -1, 0] = output 
+    for i, (data, target) in enumerate(test_loader):
+        target_list.append(target.squeeze().cpu().numpy())
+        if i == ROLLOUT_TIMESTEPS - 1:
+            break
 
-            # LSTM
-            data[:, -1, :] = output
-            
-            # Debug: Check data statistics after update
-            # print(f"Data stats after update - min: {data.min().item():.4f}, max: {data.max().item():.4f}, mean: {data.mean().item():.4f}, std: {data.std().item():.4f}")
-            # print("=" * 50)
-            
-            
-
-    # for i, (data, target) in enumerate(test_loader):
-    #     print ("target: ", target.shape) # [999, 1, 1, 1600]
-    #     print ("data: ", data.shape)
-        
-        
-    #     target_list.append(target.squeeze().cpu().numpy())
-    #     if i == ROLLOUT_TIMESTEPS - 1:
-    #         break
-
-        target_list = []
-        for i in range(ROLLOUT_TIMESTEPS):
-            target_list.append(target[i:999-ROLLOUT_TIMESTEPS+i].squeeze().cpu().numpy())
-        
-        
-        
     # Convert lists to arrays
-    data_array = np.array(data_list)[:999-ROLLOUT_TIMESTEPS]
+    data_array = np.array(data_list)
     target_array = np.array(target_list)
-    output_array = np.array(output_list)[:,:999-ROLLOUT_TIMESTEPS]
+    output_array = np.array(output_list)
 
     print("Data array shape: ", data_array.shape)
     print("Target array shape: ", target_array.shape)
     print("Output array shape: ", output_array.shape)
 
-    np.savez(
-        OUTPUTS_DIR / f"test_results-lstm-savar-1000samples-50steps.npz", 
-        inputs=data_array, 
-        target=target_array, 
-        outputs=output_array
-    )
+    np.savez(OUTPUTS_DIR / f"test_results-mlp-savar.npz", inputs=data_array, target=target_array, outputs=output_array)
 
 
 use_accel = not NO_ACCEL and torch.cuda.is_available()
@@ -193,25 +160,19 @@ test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=TEST_BATCH_SI
 
 # dataset = SineTestDataset(num_samples=1000, test=True)
 
-# test_loader = torch.utils.data.DataLoader(dataset, batch_size=TEST_BATCH_SIZE, shuffle=False)    
+# test_loader = torch.utils.data.DataLoader(dataset, batch_size=TEST_BATCH_SIZE, shuffle=False)
 
 # =======  Run inference on model =======
 
 # find model by glob
 
 # model_name = "savar_lstm-best-"
-model_name = "savar_lstm-2025_"
-# model_name = "savar_mlp-2025_"
+# model_name = "savar_lstm-2025_"
+model_name = "savar_mlp-2025_"
 # model_name = "savar_mlp-best-"
-# [1] for mlp, best lstm
-# [-1] for lstm
-model_path = glob.glob(f"{MODELS_DIR}/{model_name}*.pt")[-1]
+model_path = glob.glob(f"{MODELS_DIR}/{model_name}*.pt")[1]
 print("model_path: ", model_path)
 
-
-print("Loading model...")
 model = torch.load(model_path, map_location=device)
 
-print("Running inference...")
 inference(model, device, test_loader)
-
