@@ -2,6 +2,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
+
 class Net(nn.Module):
     def __init__(self, input_size, output_size, layers):
         super().__init__()
@@ -22,8 +23,6 @@ class Net(nn.Module):
 
         self.model = nn.Sequential(module_dict)
 
-
     def forward(self, x):
         output = self.model(x)
         return output
-    

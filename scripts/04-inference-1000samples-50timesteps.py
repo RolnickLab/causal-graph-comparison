@@ -56,19 +56,40 @@ def inference(model, device, test_loader):
         h0 = None
         c0 = None
         for step in range(ROLLOUT_TIMESTEPS):
-            # print("step: ", step)
+            print("Step: ", step)
             # ======== LSTM ========
             # drop 3rd dimension for savar data
-            # data = data.squeeze(2)
-            # output, h0, c0 = model(data, h0=h0, c0=c0)
+            
+            data = data.squeeze(2)
+            output, h0, c0 = model(data, h0=h0, c0=c0)
+            # print("LSTM =================================")
+            # print("Data before squeeze: ", data.shape)
+            # print("output: ", output.shape)
+            # print("Data: ", data.shape)
+            
+            # Debug: Check output statistics
+            # print(f"Output stats - min: {output.min().item():.4f}, max: {output.max().item():.4f}, mean: {output.mean().item():.4f}, std: {output.std().item():.4f}")
 
             # ======== MLP ========
-            output = model(data.view(data.shape[0], -1))
+            # print("MLP =================================")
+            # output = model(data.view(data.shape[0], -1))
             
             output_list.append(output.squeeze().cpu().numpy())
 
             data = torch.roll(data, shifts=-1, dims=1)
-            data[:, -1, 0] = output
+            # print("Data after roll: ", data.shape)
+
+            # MLP
+            # data[:, -1, 0] = output 
+
+            # LSTM
+            data[:, -1, :] = output
+            
+            # Debug: Check data statistics after update
+            # print(f"Data stats after update - min: {data.min().item():.4f}, max: {data.max().item():.4f}, mean: {data.mean().item():.4f}, std: {data.std().item():.4f}")
+            # print("=" * 50)
+            
+            
 
     # for i, (data, target) in enumerate(test_loader):
     #     print ("target: ", target.shape) # [999, 1, 1, 1600]
@@ -95,7 +116,7 @@ def inference(model, device, test_loader):
     print("Output array shape: ", output_array.shape)
 
     np.savez(
-        OUTPUTS_DIR / f"test_results-mlp-savar-1000samples-50steps.npz", 
+        OUTPUTS_DIR / f"test_results-lstm-savar-1000samples-50steps.npz", 
         inputs=data_array, 
         target=target_array, 
         outputs=output_array
@@ -179,13 +200,18 @@ test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=TEST_BATCH_SI
 # find model by glob
 
 # model_name = "savar_lstm-best-"
-# model_name = "savar_lstm-2025_"
-model_name = "savar_mlp-2025_"
+model_name = "savar_lstm-2025_"
+# model_name = "savar_mlp-2025_"
 # model_name = "savar_mlp-best-"
-model_path = glob.glob(f"{MODELS_DIR}/{model_name}*.pt")[1]
+# [1] for mlp, best lstm
+# [-1] for lstm
+model_path = glob.glob(f"{MODELS_DIR}/{model_name}*.pt")[-1]
 print("model_path: ", model_path)
 
+
+print("Loading model...")
 model = torch.load(model_path, map_location=device)
 
+print("Running inference...")
 inference(model, device, test_loader)
 

@@ -8,6 +8,8 @@ import causal_graph_comparison
 from causal_graph_comparison.graph_builder import GraphBuilder
 from causal_graph_comparison.graph_modifier import GraphModifier
 from causal_graph_comparison.utils import binarize_array
+from causal_graph_comparison import OUTPUTS_DIR
+import numpy as np
 
 # --- 1. Build ground truth graph with graph builder ---
 
@@ -33,9 +35,11 @@ Gguess = mod_adjacency_matrix_sparse.todense()  # dense
 
 Gguess = binarize_array(Gguess)
 print("Gguess:\n", Gguess)
+print("type of Gguess: ", type(Gguess))
+
 
 # -- 4. Calculate metrics --
 # TODO: use gadjid to calculate metrics
-print(ancestor_aid(Gtrue, Gguess, edge_direction="from row to column"))
+print(parent_aid(Gtrue, Gguess, edge_direction="from row to column"))
 print(sid(Gtrue, Gguess, edge_direction="from row to column"))
 print(shd(Gtrue, Gguess))

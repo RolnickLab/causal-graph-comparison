@@ -5,6 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from causal_graph_comparison import *
+from accelerate import Accelerator
+from accelerate.utils import DistributedDataParallelKwargs
+
+kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+accelerator = Accelerator(kwargs_handlers=[kwargs])
 
 # get root path
 print(PROJECT_ROOT)
@@ -72,10 +77,11 @@ train_dataset = dl._data_train
 val_dataset = dl._data_val
 
 # Let's inspect the first item
-x, y = train_dataset[0]
+x, y = val_dataset[0]
 print("\nInitial shapes:")
 print("Input shape:", x.shape)
 print("Target shape:", y.shape)
+
 
 
 for i in range(5):
@@ -97,17 +103,40 @@ print(f"\nDataset sizes:")
 print(f"Train set size: {len(train_dataset)}")
 print(f"Val set size: {len(val_dataset)}")
 
+print("--------------------------------")
+
 # Create simple dataloaders for inspection if needed
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False)
+test_dataloader = dl.val_dataloader()
+test_train_dataloader = dl.train_dataloader(accelerator)
+
+print(f"Train dataloader size: {len(train_loader)}")
+print(f"Val dataloader size: {len(val_loader)}")
+print(f"Test dataloader size: {len(test_dataloader)}")
+print(f"Test train dataloader size: {len(test_train_dataloader)}")
 
 # Inspect a batch
-for batch in train_loader:
+for batch in test_dataloader:
     x, y = batch
+    print("TEST DATALOADER")
     print("\nBatch shapes:")
     print("Input shape:", x.shape)
     print("Target shape:", y.shape)
     break
+
+print("--------------------------------")
+
+for batch in val_loader:
+    x, y = batch
+    print("VAL DATALOADER")
+    print("\nBatch shapes:")
+    print("Input shape:", x.shape)
+    print("Target shape:", y.shape)
+    break
+
+quit()
+
 
 # Print some statistics about the data
 print("\nData statistics:")

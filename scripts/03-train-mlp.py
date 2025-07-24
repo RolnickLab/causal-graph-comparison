@@ -35,6 +35,19 @@ TAU = 5
 LAYERS = [1600, 800, 1600]
 INPUT_SIZE = LATITUDE * LONGITUDE * TAU
 OUTPUT_SIZE = LATITUDE * LONGITUDE * FUTURE_TIMESTEPS
+DIFFICULTY = "med_easy"
+NUM_MODES = 4
+MODEL_TYPE = "mlp"
+DATASET_TYPE = "savar"
+BEST = False
+best_name = "best-" if BEST else ""
+
+diff_mapping = {
+    "easy": "e",
+    "med_easy": "me",
+    "med_hard": "mh",
+    "hard": "h",
+}
 
 # SINE DATASET TESTING
 # LAYERS = [30, 20, 10]
@@ -143,6 +156,7 @@ print("==== USING SAVAR DATASET ====")
 
 dl = CausalClimateDataModule(
     # Required parameters for ClimateDataModule
+    d_z=NUM_MODES,
     in_var_ids=["savar"],
     out_var_ids=["savar"],  # Same as input for SAVAR
     train_years="2015-2100",
@@ -155,13 +169,13 @@ dl = CausalClimateDataModule(
     test_scenarios=["savar"],
     train_models="savar",
     batch_size=BATCH_SIZE,
-    eval_batch_size=64,
+    eval_batch_size=128,
     num_workers=0,
     pin_memory=False,
     load_train_into_mem=True,
     load_test_into_mem=True,
     verbose=True,
-    seed=42,
+    seed=SEED,
     seq_len=12,
     data_dir="",  # Not used for SAVAR
     output_save_dir=f"{SCRATCH_DIR}/data/SAVAR_DATA_TEST",
@@ -194,6 +208,27 @@ test_dataset = dl._data_val
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
+# =====================================
+
+# How they do it in picabu
+
+# from accelerate import Accelerator
+# from accelerate.utils import DistributedDataParallelKwargs
+
+# kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+# accelerator = Accelerator(kwargs_handlers=[kwargs], log_with="wandb")
+
+# train_loader = dl.train_dataloader(accelerator)
+# test_loader = dl.val_dataloader()
+
+# x, y = next(test_loader)
+# x = torch.nan_to_num(x)
+# y = torch.nan_to_num(y)
+# y = y[:, 0]
+
+# x = x.to(device)
+# y = y.to(device)
+
 # ============ RUN TRAINING ============
 
 model = Net(input_size=INPUT_SIZE, output_size=OUTPUT_SIZE, layers=LAYERS).to(device)
@@ -205,7 +240,7 @@ scheduler = StepLR(optimizer, step_size=1, gamma=GAMMA)
 # basline test with untrained model
 best_test_loss = test(model, device, test_loader)
 
-timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+save_name = f"{best_name}{MODEL_TYPE}-{DATASET_TYPE}-modes_{NUM_MODES}-diff_{diff_mapping[DIFFICULTY]}-seed_{SEED}"
 
 for epoch in range(1, EPOCHS + 1):
     train(LOG_INTERVAL, DRY_RUN, model, device, train_loader, optimizer, epoch)
@@ -216,5 +251,5 @@ for epoch in range(1, EPOCHS + 1):
 
         if test_loss < best_test_loss:
             best_test_loss = test_loss
-            torch.save(model, f"{MODELS_DIR}/savar_mlp-best-{timestamp}.pt")
-        torch.save(model, f"{MODELS_DIR}/savar_mlp-{timestamp}.pt")
+            torch.save(model, f"{MODELS_DIR}/{save_name}.pt")
+        torch.save(model, f"{MODELS_DIR}/{save_name}.pt")

@@ -15,9 +15,7 @@ class Lstm(nn.Module):
         super(Lstm, self).__init__()
         # Input size is flattened 40x40=1600 dimensional vector
         # Hidden size can be adjusted as needed
-        self.rnn = nn.LSTM(
-            input_size=input_size, hidden_size=hidden_size, batch_first=True, num_layers=num_layers
-        )
+        self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, batch_first=True, num_layers=num_layers)
 
         # Output layer to predict next 40x40 frame
         self.decoder = nn.Sequential(
@@ -27,9 +25,10 @@ class Lstm(nn.Module):
         )
 
     def forward(self, input, h0=None, c0=None):
+        # print(self)
         # Input shape: (batch_size, 5, 1600) - 5 timesteps of 40x40 frames
         # print("input shape: ", input.shape)
-        
+
         # Pass through LSTM
         # output shape: (batch_size, seq_len=5, hidden_size=800)
         if h0 is None or c0 is None:
@@ -90,7 +89,7 @@ class Lstm_sine(nn.Module):
 
         # print("next_value shape: ", next_value.shape)
 
-        return next_value, hidden, cell  
+        return next_value, hidden, cell
 
 
 if __name__ == "__main__":

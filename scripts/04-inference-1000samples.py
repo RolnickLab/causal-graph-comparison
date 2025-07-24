@@ -10,6 +10,7 @@ from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison.lstm import Lstm_sine
 from causal_graph_comparison.test_dataset import SineTestDataset
 import matplotlib.pyplot as plt
+
 # from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import wandb
@@ -31,6 +32,21 @@ TAU = 5
 LAYERS = [1600, 800, 1600]
 INPUT_SIZE = LATITUDE * LONGITUDE * TAU
 OUTPUT_SIZE = LATITUDE * LONGITUDE * FUTURE_TIMESTEPS
+DIFFICULTY = "med_easy"
+NUM_MODES = 4
+MODEL_TYPE = "mlp"
+BEST = False
+
+best_name = "best-" if BEST else ""
+
+diff_mapping = {
+    "easy": "e",
+    "med_easy": "me",
+    "med_hard": "mh",
+    "hard": "h",
+}
+
+save_name = f"{best_name}{MODEL_TYPE}-savar-modes_{NUM_MODES}-diff_{diff_mapping[DIFFICULTY]}-seed_{SEED}"
 
 
 def inference(model, device, test_loader):
@@ -51,20 +67,22 @@ def inference(model, device, test_loader):
 
         # Flatten data for MLP sine data: (batch, seq_len, features) -> (batch, seq_len*features)
         # data = data.view(data.shape[0], -1)
-        
+
         predictions = []
         h0 = None
         c0 = None
         for step in range(ROLLOUT_TIMESTEPS):
             # print("step: ", step)
             # ======== LSTM ========
-            # drop 3rd dimension for savar data
-            # data = data.squeeze(2)
-            # output, h0, c0 = model(data, h0=h0, c0=c0)
+            if MODEL_TYPE == "lstm":
+                # drop 3rd dimension for savar data
+                data = data.squeeze(2)
+                output, h0, c0 = model(data, h0=h0, c0=c0)
 
             # ======== MLP ========
-            output = model(data.view(data.shape[0], -1))
-            
+            elif MODEL_TYPE == "mlp":
+                output = model(data.view(data.shape[0], -1))
+
             output_list.append(output.squeeze().cpu().numpy())
 
             # data = torch.roll(data, shifts=-1, dims=1)
@@ -75,7 +93,6 @@ def inference(model, device, test_loader):
         if i == ROLLOUT_TIMESTEPS - 1:
             break
 
-        
     # Convert lists to arrays
     data_array = np.array(data_list)
     target_array = np.array(target_list)
@@ -86,10 +103,10 @@ def inference(model, device, test_loader):
     print("Output array shape: ", output_array.shape)
 
     np.savez(
-        OUTPUTS_DIR / f"test_results-mlp-savar-1000samples.npz", 
-        inputs=data_array, 
-        target=target_array, 
-        outputs=output_array
+        OUTPUTS_DIR / f"{save_name}.npz",
+        inputs=data_array,
+        target=target_array,
+        outputs=output_array,
     )
 
 
@@ -111,6 +128,7 @@ if use_accel:
 
 dl = CausalClimateDataModule(
     # Required parameters for ClimateDataModule
+    d_z=NUM_MODES,
     in_var_ids=["savar"],
     out_var_ids=["savar"],  # Same as input for SAVAR
     train_years="2015-2100",
@@ -149,7 +167,7 @@ dl = CausalClimateDataModule(
     comp_size=10,
     noise_val=0.2,
     n_per_col=2,
-    difficulty="med_easy",
+    difficulty=DIFFICULTY,
     seasonality=False,
 )
 
@@ -163,20 +181,15 @@ test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=TEST_BATCH_SI
 
 # dataset = SineTestDataset(num_samples=1000, test=True)
 
-# test_loader = torch.utils.data.DataLoader(dataset, batch_size=TEST_BATCH_SIZE, shuffle=False)    
+# test_loader = torch.utils.data.DataLoader(dataset, batch_size=TEST_BATCH_SIZE, shuffle=False)
 
 # =======  Run inference on model =======
 
 # find model by glob
 
-# model_name = "savar_lstm-best-"
-# model_name = "savar_lstm-2025_"
-model_name = "savar_mlp-2025_"
-# model_name = "savar_mlp-best-"
-model_path = glob.glob(f"{MODELS_DIR}/{model_name}*.pt")[1]
+model_path = f"{MODELS_DIR}/{save_name}.pt"
 print("model_path: ", model_path)
 
 model = torch.load(model_path, map_location=device)
 
 inference(model, device, test_loader)
-

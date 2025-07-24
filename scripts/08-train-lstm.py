@@ -34,7 +34,22 @@ LATITUDE = 40
 TAU = 30
 INPUT_SIZE = LATITUDE * LONGITUDE * TAU
 OUTPUT_SIZE = LATITUDE * LONGITUDE * FUTURE_TIMESTEPS
-HIDDEN_SIZE = 1600 # LSTM
+HIDDEN_SIZE = 1600  # LSTM
+DIFFICULTY = "med_easy"
+NUM_MODES = 4
+BEST = False
+MODEL_TYPE = "lstm"
+DATASET_TYPE = "savar"
+
+best_name = "best-" if BEST else ""
+
+diff_mapping = {
+    "easy": "e",
+    "med_easy": "me",
+    "med_hard": "mh",
+    "hard": "h",
+}
+
 
 wandb.init(
     project="climatem",
@@ -59,14 +74,14 @@ def train(log_interval, dry_run, model, device, train_loader, optimizer, epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
 
         data, target = data.to(device), target.to(device)
-        
+
         # Debug shapes
         if batch_idx == 0 and epoch == 1:
             print(f"Data shape: {data.shape}")
             print(f"Target shape: {target.shape}")
             print(f"Data range: [{data.min():.4f}, {data.max():.4f}]")
             print(f"Target range: [{target.min():.4f}, {target.max():.4f}]")
-        
+
         optimizer.zero_grad()
 
         # Savar data
@@ -74,7 +89,7 @@ def train(log_interval, dry_run, model, device, train_loader, optimizer, epoch):
         data = data.squeeze()
 
         output, _, _ = model(data)
-        
+
         # Debug output shape
         if batch_idx == 0 and epoch == 1:
             print(f"Model output shape: {output.shape}")
@@ -82,18 +97,18 @@ def train(log_interval, dry_run, model, device, train_loader, optimizer, epoch):
 
         # target shape: (batch_size, future_timesteps, 1) -> (batch_size, future_timesteps)
         target = target.squeeze() if target.dim() > 2 else target
-        
+
         loss = F.mse_loss(output, target)
-        
+
         # Debug loss
         if batch_idx == 0:
             print(f"Epoch {epoch}, Batch {batch_idx}, Loss: {loss.item():.6f}")
         loss.backward()
-        
+
         optimizer.step()
 
         wandb.log({"loss_train": loss.item() / len(data)})
-        
+
         if batch_idx % log_interval == 0:
             print(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
@@ -101,7 +116,7 @@ def train(log_interval, dry_run, model, device, train_loader, optimizer, epoch):
                     batch_idx * len(data),
                     len(train_loader.dataset),
                     100.0 * batch_idx / len(train_loader),
-                    loss.item(), # TODO fix print statement
+                    loss.item(),  # TODO fix print statement
                 )
             )
             if dry_run:
@@ -129,7 +144,6 @@ def test(model, device, test_loader):
             target = target.squeeze() if target.dim() > 2 else target
 
             test_loss += F.mse_loss(output, target).item()  # sum up batch loss
-
 
     test_loss /= len(test_loader.dataset)
 
@@ -241,7 +255,7 @@ scheduler = StepLR(optimizer, step_size=1, gamma=GAMMA)
 # basline test with untrained model
 best_test_loss = test(model, device, test_loader)
 
-timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+save_name = f"{best_name}{MODEL_TYPE}-{DATASET_TYPE}-modes_{NUM_MODES}-diff_{diff_mapping[DIFFICULTY]}-seed_{SEED}"
 
 for epoch in range(1, EPOCHS + 1):
     train(LOG_INTERVAL, DRY_RUN, model, device, train_loader, optimizer, epoch)
@@ -249,8 +263,7 @@ for epoch in range(1, EPOCHS + 1):
     scheduler.step()
 
     if SAVE_MODEL:
-        # TODO: save best model & config
         if test_loss < best_test_loss:
             best_test_loss = test_loss
-            torch.save(model, f"{MODELS_DIR}/savar_lstm-best-{timestamp}.pt")
-        torch.save(model, f"{MODELS_DIR}/savar_lstm-{timestamp}.pt")
+            torch.save(model, f"{MODELS_DIR}/{save_name}.pt")
+        torch.save(model, f"{MODELS_DIR}/{save_name}.pt")

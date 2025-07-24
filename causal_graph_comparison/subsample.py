@@ -45,7 +45,10 @@ def subsample_outputs(outputs, num_modes):
     """
     # Get dimensions of outputs
     num_samples = outputs.shape[0]
+    # print(f"num_samples: {num_samples}")
+    # print(f"outputs.shape: {outputs.shape}")
     modes_per_side = int(sqrt(num_modes))
+    # print(f"modes_per_side: {modes_per_side}")
     
     # Get the centres for subsampling
     centres = get_quadrant_centres(outputs, num_modes)
