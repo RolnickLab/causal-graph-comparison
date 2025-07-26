@@ -76,11 +76,19 @@ After running PCMCI, run:
 ### Then there are the things that you planned on doing already
 - [ ] Implement the “weighted” distance i.e. that uses the weights of each edges
 - [ ] Compare to the MSE + intervention + PSD metrics
-- [ ] Implement “non-causal PICABU” (VAE) + CNN
+- [x] Implement “non-causal PICABU” (VAE) + CNN
 
 ### NEXT STEPS
 - [x] Set particle filter to 1
 - [x] rewrite save npy script to save trajectory only to one file
 - [x] find learned causal graph (graphs.npz)
 - [x] is gradient descent not being seeded properly??
+- [x] implement cnn
+- [x] implement vae
 - [ ] make sure mlp, cnn, lstm all take in same input shape
+
+- [ ] understand how learned graphs are generated
+- [ ] orientation of graphs? FROM: column TO: row, gt graph is reversed in time
+- [x] where does picabu get gt graph from? 
+- [ ] find correct vae run
+- [ ] compare permuted graphs from picabu to learned graphs from pcmci+  

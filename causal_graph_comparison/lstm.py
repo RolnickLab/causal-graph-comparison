@@ -9,7 +9,10 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from torchvision import datasets, transforms
 
-# TODO: make lstm accept (batch_size, 5, 1, 1600)  
+# TODO: make lstm accept (batch_size, 5, 1, 1600)
+# TODO use best lstm --> use best model for all of them
+# find way not to overfit
+# decrease hidden size --> 4?
 
 
 class Lstm(nn.Module):
@@ -21,7 +24,7 @@ class Lstm(nn.Module):
 
         # Output layer to predict next 40x40 frame
         self.decoder = nn.Sequential(
-            nn.Dropout(p=0.5),
+            nn.Dropout(p=0.5),  # dropout too high 0.1, 0.2
             nn.LeakyReLU(),
             nn.Linear(hidden_size, input_size),
         )
