@@ -71,7 +71,6 @@ wandb.init(
     },
 )
 
-
 def train(log_interval: int, dry_run: bool, model: nn.Module, device: torch.device, train_loader: torch.utils.data.DataLoader, optimizer: torch.optim.Optimizer, epoch: int):
     """
     Training loop for mlp
@@ -146,6 +145,9 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
 
     return test_loss
 
+def train_model(model, ds_train, ds_test, model_path):
+    # TODO: run train_model from trainer.py
+    pass
 
 config_dict = get_json_config("mlp_config.json")
 # TODO get config params

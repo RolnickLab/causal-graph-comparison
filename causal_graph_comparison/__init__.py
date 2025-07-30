@@ -9,7 +9,7 @@ PROJECT_ROOT = APP_ROOT.parent
 
 # The rest are paths for the different folders of the repository
 DATA_DIR = PROJECT_ROOT / "data"
-CONFIGS_PATH = PROJECT_ROOT / "configs"
+CONFIGS_DIR = PROJECT_ROOT / "configs"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
@@ -17,9 +17,9 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 # TODO: if os is mac, find different scratch path vs linux
 if sys.platform == "linux":
     SCRATCH_DIR = Path.home() / "scratch"
-    print("Detected Linux system, using scratch directory: ", SCRATCH_DIR)
+    print("CGC: Detected Linux system, using scratch directory: ", SCRATCH_DIR)
 else:
     SCRATCH_DIR = PROJECT_ROOT.parent / "scratch"  # hardcoded for Christina's local machine
-    print("Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
+    print("CGC: Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
 
 MODELS_DIR = SCRATCH_DIR / "cgc" / "models"

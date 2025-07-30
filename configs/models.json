@@ -1,0 +1,93 @@
+{
+    "common": {
+        "model_params": {
+            "num_features": 1600,
+            "tau": 5,
+            "future_timesteps": 1,
+            "longitude": 40,
+            "latitude": 40
+        },
+        "training_params": {
+            "num_epochs": 100,
+            "batch_size": 128,
+            "learning_rate": 1e-3,
+            "patience": 15,
+            "val_split": 0.2,
+            "gamma": 0.7,
+            "log_interval": 10,
+            "save_model": true
+        },
+        "test_params": {
+            "test_batch_size": 1000,
+            "seed": 42
+        },
+        "exp_params": {
+            "exp_path": "$SCRATCH/training_results",
+            "gpu": true,
+            "num_workers": 0,
+            "pin_memory": false,
+            "verbose": true
+        }
+    },
+
+    "mlp": {
+        "model_params": {
+            "layers": [1024, 512, 256]
+        },
+        "wandb": {
+            "model": "mlp"
+        }
+    },
+
+    "lstm": {
+        "model_params": {
+            "hidden_size": 1600,
+            "num_layers": 2,
+            "dropout": 0.1
+        },
+        "wandb": {
+            "model": "lstm"
+        }
+    },
+
+    "cnn": {
+        "model_params": {
+            "channels": [32, 64, 128],
+            "kernel_sizes": [3, 3, 3],
+            "fc_hidden": [512, 256]
+        },
+        "wandb": {
+            "model": "cnn"
+        }
+    },
+
+    "vae": {
+        "optim_params": {
+            "ortho_mu_init": 1e-8,
+            "ortho_mu_mult_factor": 1,
+            "ortho_h_threshold": 1e8,
+
+            "sparsity_mu_init": 1e-8,
+            "sparsity_mu_mult_factor": 1,
+            "sparsity_h_threshold": 1e8,
+
+            "acyclic_mu_init": 1e-8,
+            "acyclic_mu_mult_factor": 1,
+            "acyclic_h_threshold": 1e8
+        },
+        "wandb": {
+            "model": "vae"
+        }
+    },
+
+    "wandb": {
+        "project": "climatem"
+    },
+
+    "diff_mapping": {
+        "easy": "e", 
+        "med_easy": "me",
+        "med_hard": "mh",
+        "hard": "h"
+    }
+}

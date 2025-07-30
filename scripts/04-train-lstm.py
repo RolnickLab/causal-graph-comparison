@@ -17,49 +17,51 @@ from torch.optim.lr_scheduler import StepLR
 import wandb
 from datetime import datetime
 
-# Training settings
-BATCH_SIZE = 128
-TEST_BATCH_SIZE = 1000
-EPOCHS = 100
-LEARNING_RATE = 0.001
-GAMMA = 0.9
-NO_ACCEL = False
-DRY_RUN = False
-SEED = 1
-LOG_INTERVAL = 10
-SAVE_MODEL = True
-FUTURE_TIMESTEPS = 1
-LONGITUDE = 40
-LATITUDE = 40
-TAU = 30
+# Load configuration from JSON file
+config = get_json_config("lstm_config.json")
+
+# Extract configuration values
+BATCH_SIZE = config["training"]["batch_size"]
+TEST_BATCH_SIZE = config["training"]["test_batch_size"]
+EPOCHS = config["training"]["epochs"]
+LEARNING_RATE = config["training"]["learning_rate"]
+GAMMA = config["training"]["gamma"]
+NO_ACCEL = config["training"]["no_accel"]
+DRY_RUN = config["training"]["dry_run"]
+SEED = config["training"]["seed"]
+LOG_INTERVAL = config["training"]["log_interval"]
+SAVE_MODEL = config["training"]["save_model"]
+
+FUTURE_TIMESTEPS = config["model"]["future_timesteps"]
+LONGITUDE = config["model"]["longitude"]
+LATITUDE = config["model"]["latitude"]
+TAU = config["model"]["tau"]
+HIDDEN_SIZE = config["model"]["hidden_size"]
+MODEL_TYPE = config["model"]["model_type"]
+DATASET_TYPE = config["model"]["dataset_type"]
+
+DIFFICULTY = config["data"]["difficulty"]
+NUM_MODES = config["data"]["num_modes"]
+BEST = config["data"]["best"]
+
+# Calculate derived values
 INPUT_SIZE = LATITUDE * LONGITUDE * TAU
 OUTPUT_SIZE = LATITUDE * LONGITUDE * FUTURE_TIMESTEPS
-HIDDEN_SIZE = 1600  # LSTM
-DIFFICULTY = "med_easy"
-NUM_MODES = 4
-BEST = False
-MODEL_TYPE = "lstm"
-DATASET_TYPE = "savar"
 
 best_name = "best-" if BEST else ""
 
-diff_mapping = {
-    "easy": "e",
-    "med_easy": "me",
-    "med_hard": "mh",
-    "hard": "h",
-}
+diff_mapping = config["diff_mapping"]
 
 
 wandb.init(
-    project="climatem",
+    project=config["wandb"]["project"],
     config={
         "batch_size": BATCH_SIZE,
         "learning_rate": LEARNING_RATE,
         "epochs": EPOCHS,
         "tau": TAU,
         "future_timesteps": FUTURE_TIMESTEPS,
-        "model": "lstm",
+        "model": MODEL_TYPE,
         "layers": [HIDDEN_SIZE],
         "latitude": LATITUDE,
         "longitude": LONGITUDE,
@@ -86,19 +88,20 @@ def train(log_interval, dry_run, model, device, train_loader, optimizer, epoch):
 
         # Savar data
         # convert data to (batch_size, tau, input_size)
-        data = data.squeeze()
+        # data = data.squeeze()
 
-        output, _, _ = model(data)
+        output = model(data)
+        next_frame = output[0]
 
         # Debug output shape
         if batch_idx == 0 and epoch == 1:
-            print(f"Model output shape: {output.shape}")
-            print(f"Output range: [{output.min():.4f}, {output.max():.4f}]")
+            print(f"Model output shape: {next_frame.shape}")
+            print(f"Output range: [{next_frame.min():.4f}, {next_frame.max():.4f}]")
 
         # target shape: (batch_size, future_timesteps, 1) -> (batch_size, future_timesteps)
         target = target.squeeze() if target.dim() > 2 else target
 
-        loss = F.mse_loss(output, target)
+        loss = F.mse_loss(next_frame, target)
 
         # Debug loss
         if batch_idx == 0:
@@ -133,9 +136,10 @@ def test(model, device, test_loader):
 
             # Savar data
             # convert data to (batch_size, tau, input_size)
-            data = data.squeeze()
+            # data = data.squeeze()
 
-            output, _, _ = model(data)
+            output = model(data)
+            next_frame = output[0]
 
             # Sine data
             # output, _, _ = model(data)
@@ -143,7 +147,7 @@ def test(model, device, test_loader):
             # Reshape target to match model output (batch_size, future_timesteps) (remove last dim)
             target = target.squeeze() if target.dim() > 2 else target
 
-            test_loss += F.mse_loss(output, target).item()  # sum up batch loss
+            test_loss += F.mse_loss(next_frame, target).item()  # sum up batch loss
 
     test_loss /= len(test_loader.dataset)
 
@@ -153,8 +157,7 @@ def test(model, device, test_loader):
     return test_loss
 
 
-config_dict = get_json_config("lstm_config.json")
-# TODO get config params
+# Configuration already loaded at the top of the file
 
 
 use_accel = not NO_ACCEL and torch.cuda.is_available()
@@ -183,6 +186,8 @@ if use_accel:
 # test_loader = torch.utils.data.DataLoader(dataset_test, batch_size=100, shuffle=False)
 
 # =======  SAVAR dataset =======
+
+# get params from savar config file
 
 print("==== USING SAVAR DATASET ====")
 

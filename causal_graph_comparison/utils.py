@@ -1,6 +1,6 @@
 import numpy as np
 import json
-from causal_graph_comparison import CONFIGS_PATH
+from causal_graph_comparison import CONFIGS_DIR
 import logging
 import pathlib
 
@@ -58,8 +58,8 @@ def get_json_config(json_config_file: str, logger=None) -> dict:
 
     potential_paths = [
         pathlib.Path(json_config_file),
-        CONFIGS_PATH / json_config_file,
-        CONFIGS_PATH / f"{json_config_file}.json",
+        CONFIGS_DIR / json_config_file,
+        CONFIGS_DIR / f"{json_config_file}.json",
     ]
 
     config_filepath = None
