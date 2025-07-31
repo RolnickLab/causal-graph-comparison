@@ -17,9 +17,11 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 # TODO: if os is mac, find different scratch path vs linux
 if sys.platform == "linux":
     SCRATCH_DIR = Path.home() / "scratch"
+    PLATFORM = "cluster"
     print("CGC: Detected Linux system, using scratch directory: ", SCRATCH_DIR)
 else:
     SCRATCH_DIR = PROJECT_ROOT.parent / "scratch"  # hardcoded for Christina's local machine
+    PLATFORM = "mac"
     print("CGC: Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
 
 MODELS_DIR = SCRATCH_DIR / "cgc" / "models"

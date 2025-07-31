@@ -5,7 +5,7 @@ import torch.nn as nn
 # TODO: make mlp accept (batch_size, 5, 1, 1600)
 
 
-class Net(nn.Module):
+class MLP(nn.Module):
     def __init__(self, input_size, output_size, layers):
         super().__init__()
 
@@ -43,11 +43,6 @@ class Net(nn.Module):
         output = output.reshape(x.size(0), 1, -1, self.output_size)
         # print(f"reshaped output shape: {output.shape}")
         return output
-
-
-def train_mlp(ds_train, ds_test, model_path):
-    # TODO: run train_model from trainer.py
-    return
 
 if __name__ == "__main__":
 

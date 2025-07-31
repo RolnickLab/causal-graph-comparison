@@ -15,9 +15,9 @@ from torchvision import datasets, transforms
 # decrease hidden size --> 4?
 
 
-class Lstm(nn.Module):
-    def __init__(self, input_size=1600, hidden_size=800, num_layers=3):
-        super(Lstm, self).__init__()
+class LSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers):
+        super(LSTM, self).__init__()
         self.name = "lstm"
         # Input size is flattened 40x40=1600 dimensional vector
         # Hidden size can be adjusted as needed
@@ -25,7 +25,10 @@ class Lstm(nn.Module):
 
         # Output layer to predict next 40x40 frame
         self.decoder = nn.Sequential(
-            nn.Dropout(p=0.5),  # dropout too high 0.1, 0.2
+            nn.Dropout(p=0.2),  
+            nn.LeakyReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Dropout(p=0.2),  
             nn.LeakyReLU(),
             nn.Linear(hidden_size, input_size),
         )
@@ -107,7 +110,6 @@ class Lstm_sine(nn.Module):
         # print("next_value shape: ", next_value.shape)
 
         return (next_value, hidden, cell)
-
 
 if __name__ == "__main__":
 

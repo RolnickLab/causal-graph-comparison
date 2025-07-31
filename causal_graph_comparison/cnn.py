@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class CNN(nn.Module):
-    def __init__(self, input_channels=5, output_channels=1, image_size=20):
+    def __init__(self, input_channels, output_channels, image_size):
         """
         CNN for next-step prediction of 40x40 images.
 
@@ -24,7 +24,7 @@ class CNN(nn.Module):
         # Convolutional layers
         self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, padding=1)  # kernel size should be larger
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)  # kernel size should be larger
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=5, padding=2)
 
         # Pooling layers
         self.pool = nn.MaxPool2d(2, 2)

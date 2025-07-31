@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
-from accelerate import Accelerator, DistributedDataParallelKwargs
-from climatem import SCRATCH_DIR
+from accelerate import Accelerator
 from climatem.model.train_model import TrainingLatent
 from climatem.model.tsdcd_latent import LatentTSDCD
 from climatem.model.metrics import edge_errors, mcc_latent, precision_recall, shd, w_mae
@@ -10,12 +9,21 @@ import wandb
 import time
 import numpy as np
 
+from causal_graph_comparison import MODELS_DIR, PLATFORM
+
 torch.set_warn_always(False)
 
-kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-accelerator = Accelerator(kwargs_handlers=[kwargs], log_with="wandb")
+
+if PLATFORM == "cluster":
+    cpu = False    
+else:
+    cpu = True
+
+accelerator = Accelerator(log_with="wandb", cpu=cpu)
+
 
 def train_picabu(
+    datamodule,
     experiment_params,
     data_params,
     gt_params,
@@ -24,7 +32,6 @@ def train_picabu(
     optim_params,
     plot_params,
     savar_params,
-    datamodule,
     trained_model = None, # if None, train picabu on savar, otherwise train on model-generated data
     trained_model_params = None,
 ):
@@ -99,7 +106,7 @@ def train_picabu(
     hp["train_params"] = train_params.__dict__
     hp["model_params"] = model_params.__dict__
     hp["optim_params"] = optim_params.__dict__
-    hp["trained_model"] = trained_model_params.__dict__ if trained_model is not None else None
+    hp["trained_model"] = trained_model_params if trained_model_params is not None else None
 
     with open(exp_path / "params.json", "w") as file:
         json.dump(hp, file, indent=4)
@@ -203,3 +210,7 @@ def train_picabu(
 
     # finally, save the model
     torch.save(trainer.model.state_dict(), exp_path / "model-final.pth")
+    
+    if vae_mode:
+        torch.save(trainer.model.state_dict(), MODELS_DIR / f"{name}.pth")
+    
