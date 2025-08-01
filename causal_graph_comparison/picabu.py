@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from accelerate import Accelerator
+from accelerate import Accelerator, DistributedDataParallelKwargs
 from climatem.model.train_model import TrainingLatent
 from climatem.model.tsdcd_latent import LatentTSDCD
 from climatem.model.metrics import edge_errors, mcc_latent, precision_recall, shd, w_mae
@@ -19,8 +19,9 @@ if PLATFORM == "cluster":
 else:
     cpu = True
 
-accelerator = Accelerator(log_with="wandb", cpu=cpu)
-
+# accelerator = Accelerator(log_with="wandb", cpu=cpu)
+kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+accelerator = Accelerator(kwargs_handlers=[kwargs], log_with="wandb")
 
 def train_picabu(
     datamodule,
@@ -35,8 +36,29 @@ def train_picabu(
     trained_model = None, # if None, train picabu on savar, otherwise train on model-generated data
     trained_model_params = None,
 ):
+    # to run picabu as VAE, value should be 1e-8
+    vae_mode = optim_params.ortho_mu_init < 1 
+
+    # Set the name of the run based on what picabu is trained on
+    if trained_model is not None:
+        trained_model_name = f"picabu_{trained_model.name}"
+    elif vae_mode:
+        trained_model_name = "vae"
+    else:
+        trained_model_name = "picabu"
+
+    save_name = f"modes_{experiment_params.d_z}-difficulty_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
+    name = f"{trained_model_name}-{save_name}"
+    exp_path = Path(experiment_params.exp_path) / name
+    exp_path.mkdir(exist_ok=True)
+
+    # check if model already exists
+    if (exp_path / "model-final.pth").exists():
+        print(f"=== SKIPPING TRAINING: Model already exists at {exp_path / 'model-final.pth'}")
+        return
+
     t0 = time.time()
-    vae_mode = optim_params.ortho_mu_init < 1 # to run picabu as VAE, value should be 1e-8
+    
     d = len(data_params.in_var_ids) # number of datasets, in this case = 1
     
     # set the picabumodel
@@ -70,28 +92,11 @@ def train_picabu(
         tied_w=model_params.tied_w,
         fixed=model_params.fixed,
         fixed_output_fraction=model_params.fixed_output_fraction,
+        vae_mode=vae_mode,
     )
 
     # Set wandb logging
     wandb.watch(picabu_model, log="all")
-
-    # Create experiments folder
-    exp_path = Path(experiment_params.exp_path)
-    exp_path.mkdir(exist_ok=True)
-
-    # Set the name of the run based on what picabu is trained on
-    if trained_model is not None:
-        trained_model_name = f"{trained_model.name}"
-    elif vae_mode:
-        trained_model_name = "picabu-vae"
-    else:
-        trained_model_name = "picabu"
-
-    # Create folder to save run results
-    save_name = f"modes_{experiment_params.d_z}-difficulty_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
-    name = f"{trained_model_name}-{save_name}"
-    exp_path = exp_path / name
-    exp_path.mkdir(exist_ok=True)
 
     save_path = exp_path / "training_results"
     save_path.mkdir(exist_ok=True)
@@ -201,8 +206,8 @@ def train_picabu(
     else:
         print("Model is in eval mode")
 
-    for key, val in metrics.items():
-        wandb.summary[key] = val
+    # for key, val in metrics.items():
+    #     wandb.summary[key] = val
 
     # save the metrics
     with open(exp_path / "metrics.json", "w") as file:

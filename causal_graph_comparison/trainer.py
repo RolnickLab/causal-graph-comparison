@@ -1,14 +1,7 @@
-import argparse
-from pathlib import Path
-from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from causal_graph_comparison.mlp import Net
-from climatem.data_loader.causal_datamodule import CausalClimateDataModule
-from causal_graph_comparison.utils import get_json_config
-from causal_graph_comparison.test_dataloader import SineTestDataset
 from accelerate import Accelerator
 from causal_graph_comparison import PLATFORM
 
@@ -16,8 +9,6 @@ from causal_graph_comparison import PLATFORM
 from torch.optim.lr_scheduler import StepLR
 import wandb
 from causal_graph_comparison import *
-from datetime import datetime
-from causal_graph_comparison.utils import flatten_data_target
 
 if PLATFORM == "cluster":
     cpu = False    
@@ -54,9 +45,6 @@ def train(params: dict, model: nn.Module, device: torch.device, train_loader: to
         optimizer.zero_grad()
         output = model(data)
 
-        if model.name == "lstm":
-            output = output[0]
-
         loss = F.mse_loss(output, target)
 
         # Debug loss
@@ -74,7 +62,7 @@ def train(params: dict, model: nn.Module, device: torch.device, train_loader: to
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
                     epoch,
                     batch_idx * len(data),
-                    len(train_loader.dataset),
+                    len(train_loader._dataset),
                     100.0 * batch_idx / len(train_loader),
                     loss.item(),
                 )
@@ -96,12 +84,9 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
             data, target = data.to(device), target.to(device)
             output = model(data)
 
-            if model.name == "lstm":
-                output = output[0]
-
             test_loss += F.mse_loss(output, target).item()  # sum up batch loss
 
-    test_loss /= len(test_loader.dataset)
+    test_loss /= len(test_loader._dataset)
 
     print(f"\nTest set: Average loss: {test_loss:.4f}\n")
     wandb.log({"loss_valid": test_loss})
@@ -110,19 +95,25 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
 
 
 def run_trainer(datamodule, model, params, dataset_type, modes, difficulty, seed, device):
+    save_name = f"{model.name}-{dataset_type}-modes_{modes}-diff_{difficulty}-seed_{seed}"
+
+    # check if model already exists
+    model_path = MODELS_DIR / f"{save_name}.pt"
+    if model_path.exists():
+        print(f"=== SKIPPING TRAINING: Model already exists at {model_path}")
+        return model_path
+
     train_loader = iter(datamodule.train_dataloader(accelerator=accelerator))
     test_loader = iter(datamodule.val_dataloader())
 
-    optimizer = optim.Adam(model.parameters(), lr=params["common"]["training_params"]["learning_rate"])
+    optimizer = optim.Adam(model.parameters(), lr=params[model.name]["training_params"]["learning_rate"])
 
-    scheduler = StepLR(optimizer, step_size=1, gamma=params["common"]["training_params"]["gamma"])
+    scheduler = StepLR(optimizer, step_size=1, gamma=params[model.name]["training_params"]["gamma"])
 
     # basline test with untrained model
-    best_test_loss = test(model, test_loader)
+    best_test_loss = test(model, device, test_loader)    
 
-    save_name = f"{model.name}-{dataset_type}-modes_{modes}-diff_{difficulty}-seed_{seed}"
-
-    epochs = params["common"]["training_params"]["num_epochs"]
+    epochs = params[model.name]["training_params"]["num_epochs"]
     for epoch in range(1, epochs + 1):
         train(params, model, device, train_loader, optimizer, epoch)
         test_loss = test(model, device, test_loader)
@@ -130,5 +121,7 @@ def run_trainer(datamodule, model, params, dataset_type, modes, difficulty, seed
 
         if test_loss < best_test_loss:
             best_test_loss = test_loss
-            torch.save(model, f"{MODELS_DIR}/{save_name}.pt")
+            torch.save(model, model_path)
         torch.save(model, f"{MODELS_DIR}/final-{save_name}.pt")
+
+    return model_path

@@ -55,7 +55,7 @@
         "lr": 0.001,
         "lr_scheduler_epochs": [10000, 20000],
         "lr_scheduler_gamma": 1,    
-        "max_iteration": 100, 
+        "max_iteration": 20, 
         "patience": 5000,
         "patience_post_thresh": 50,
         "valid_freq": 5

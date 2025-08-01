@@ -8,6 +8,9 @@ from causal_graph_comparison import *
 from accelerate import Accelerator
 from accelerate.utils import DistributedDataParallelKwargs
 
+from causal_graph_comparison.picabu_helpers import load_picabu_config
+from causal_graph_comparison.savar import generate_savar_data
+
 kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
 accelerator = Accelerator(kwargs_handlers=[kwargs])
 
@@ -19,64 +22,33 @@ output_dir = SCRATCH_DIR / "data/SAVAR_DATA_TEST/plots"
 os.makedirs(output_dir, exist_ok=True)
 print(f"Plots will be saved in: {output_dir}")
 
-# TODO check that the normalization works
-# check where it gest loaded in main_picabu as dataloader - look at vars
-# TODO global normalization
+# load savar+picabu config file
+(
+    experiment_params,
+    data_params,
+    gt_params,
+    train_params,
+    picabu_params,
+    optim_params,
+    plot_params,
+    savar_params,
+) = load_picabu_config()
 
-dl = CausalClimateDataModule(
-    # Required parameters for ClimateDataModule
-    in_var_ids=["savar"],
-    out_var_ids=["savar"],  # Same as input for SAVAR
-    train_years="2015-2100",
-    train_historical_years="1950-2014",
-    test_years="2015-2100",  # Same as train for SAVAR
-    val_split=0.1,  # 10% validation split
-    seq_to_seq=True,
-    channels_last=False,
-    train_scenarios=["savar"],
-    test_scenarios=["savar"],
-    train_models="savar",
-    batch_size=32,
-    eval_batch_size=64,
-    num_workers=0,
-    pin_memory=False,
-    load_train_into_mem=True,
-    load_test_into_mem=True,
-    verbose=True,
-    seed=42,
-    seq_len=12,
-    data_dir="",  # Not used for SAVAR
-    output_save_dir=f"{SCRATCH_DIR}/data/SAVAR_DATA_TEST",
-    num_ensembles=1,
-    lon=40,
-    lat=40,
-    num_levels=1,
-    global_normalization=True,
-    seasonality_removal=False,
-    reload_climate_set_data=True,
-    # Required parameters for CausalClimateDataModule
-    tau=5,
-    future_timesteps=1,
-    num_months_aggregated=1,
-    train_val_interval_length=100,
-    # SAVAR specific parameters
-    time_len=10000,
-    comp_size=10,
-    noise_val=0.2,
-    n_per_col=2,
-    difficulty="med_easy",
-    seasonality=False,
+# set device
+device = torch.device(
+    "cuda" if (torch.cuda.is_available() and experiment_params.gpu) else "cpu"
 )
 
-dl.setup()
-
-
+# generate savar data
+datamodule = generate_savar_data(
+    experiment_params, data_params, savar_params, train_params
+)
 
 # Access the datasets directly
-train_dataset = dl._data_train
-val_dataset = dl._data_val
+train_dataset = datamodule._data_train
+val_dataset = datamodule._data_val
 
-# Let's inspect the first item
+# Inspect the first item
 x, y = val_dataset[0]
 print("\nInitial shapes:")
 print("Input shape:", x.shape)
@@ -88,7 +60,6 @@ for i in range(5):
     plt.imshow(img)
     plt.colorbar()
 # plt.show()
-
 
 plt.subplot(2,5,i+1+5)
 img = y[0,0,:].reshape(40,40)
@@ -106,8 +77,8 @@ print("--------------------------------")
 # Create simple dataloaders for inspection if needed
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False)
-test_dataloader = dl.val_dataloader()
-test_train_dataloader = dl.train_dataloader(accelerator)
+test_dataloader = datamodule.val_dataloader()
+test_train_dataloader = datamodule.train_dataloader(accelerator)
 
 print(f"Train dataloader size: {len(train_loader)}")
 print(f"Val dataloader size: {len(val_loader)}")
@@ -133,10 +104,8 @@ for batch in val_loader:
     print("Target shape:", y.shape)
     break
 
-quit()
 
-
-# Print some statistics about the data
+# Print data stats
 print("\nData statistics:")
 print("Input mean:", x.mean().item())
 print("Input std:", x.std().item())
@@ -151,19 +120,14 @@ for i in range(5):  # Get 5 consecutive samples
     x, y = train_dataset[i]
     samples.append((x, y))
 
-# Print shapes and some values to verify temporal relationship
-print("\nSample 0:")
-print("Input shape:", samples[0][0].shape)
-print("Target shape:", samples[0][1].shape)
-
-# Print the actual dimensions of the data
-print("\nDetailed shape information:")
+# Print dimensions of the data
+print("\nShape information:")
 for i, (x, y) in enumerate(samples):
     print(f"\nSample {i}:")
     print(f"Input dimensions: {x.shape}")
     print(f"Target dimensions: {y.shape}")
     # Print values at a specific point (center of the grid)
-    center_idx = 800  # Middle of the 1600 spatial points
+    center_idx = experiment_params.d_x // 2  # Middle of the spatial points
     print(f"Input values at center point:")
     for t in range(x.shape[0]):  # For each timestep
         print(f"  Timestep {t}: {x[t,0,center_idx].item()}")
@@ -174,7 +138,6 @@ timesteps = range(5)
 input_values = []
 target_values = []  # Initialize the list
 
-# Print what we're plotting
 print("\nPlotting temporal sequence:")
 print("For each sample:")
 print("- Blue line: Last timestep of the input sequence (5 timesteps)")

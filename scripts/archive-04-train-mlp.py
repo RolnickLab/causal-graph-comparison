@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from causal_graph_comparison.mlp import Net
+from causal_graph_comparison.mlp import MLP
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison.utils import get_json_config
 from causal_graph_comparison.test_dataloader import SineTestDataset
@@ -257,7 +257,7 @@ test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, s
 
 # ============ RUN TRAINING ============
 
-model = Net(input_size=INPUT_SIZE, output_size=OUTPUT_SIZE, layers=LAYERS).to(device)
+model = MLP(input_size=INPUT_SIZE, output_size=OUTPUT_SIZE, layers=LAYERS).to(device)
 
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 

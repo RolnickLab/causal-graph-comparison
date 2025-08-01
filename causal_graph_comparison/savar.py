@@ -7,7 +7,7 @@ from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison import CONFIGS_DIR
 
 
-def generate_savar_data(experiment_params, data_params, savar_params, train_params):
+def generate_savar_data(experiment_params, data_params, savar_params, train_params, reload_data=True):
 
     # Create data directory if it doesn't exist
     os.makedirs(data_params.data_dir, exist_ok=True)
@@ -16,7 +16,7 @@ def generate_savar_data(experiment_params, data_params, savar_params, train_para
     savar_name = f"modes_{experiment_params.d_z}-difficulty_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
     #  check if pickle exists, if so, load datamodule
     pickle_path = Path(data_params.data_dir) / Path(f"{savar_name}.pkl")
-    if pickle_path.exists():
+    if pickle_path.exists() and reload_data:
         print("SAVAR data already exists, skipping generation")
         datamodule = pickle.load(open(pickle_path, "rb"))
     else:

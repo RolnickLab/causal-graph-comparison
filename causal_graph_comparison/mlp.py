@@ -6,24 +6,30 @@ import torch.nn as nn
 
 
 class MLP(nn.Module):
-    def __init__(self, input_size, output_size, layers):
+    def __init__(self, input_size, output_size, num_layers):
         super().__init__()
 
+        self.name = "mlp"
         self.input_size = input_size
         self.output_size = output_size
-        self.layers = layers
-        self.name = "mlp"
+        self.num_layers = num_layers
+
+        # dynamically determine size of layers
+        self.layers = []
+        layer_size = self.input_size
+        for layer in range(self.num_layers):
+            layer_size = layer_size // 2
+            self.layers.append(layer_size)
 
         activation = nn.LeakyReLU
-        num_layers = len(self.layers)
         module_dict = OrderedDict()
 
         # Create model layer by layer
         module_dict["lin0"] = nn.Linear(self.input_size, self.layers[0])
 
-        for layer in range(num_layers):
+        for layer in range(self.num_layers):
             in_features = self.layers[layer]
-            out_features = self.layers[layer + 1] if layer < num_layers - 1 else self.output_size
+            out_features = self.layers[layer + 1] if layer < self.num_layers - 1 else self.output_size
 
             module_dict[f"nonlin{layer}"] = activation()
             module_dict[f"lin{layer+1}"] = nn.Linear(in_features, out_features)
@@ -46,7 +52,7 @@ class MLP(nn.Module):
 
 if __name__ == "__main__":
 
-    mlp = Net(input_size=2000, output_size=400, layers=[1000, 400, 200])
+    mlp = MLP(input_size=2000, output_size=400, layers=[1000, 400, 200])
     x = torch.randn(32, 5, 1, 400)
     output = mlp(x)
     print(f"input shape: {x.shape}")

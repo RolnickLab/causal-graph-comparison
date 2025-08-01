@@ -81,7 +81,7 @@ class CNN(nn.Module):
 
         # Reshape to output format
         out = out.reshape(out.size(0), self.output_channels, 1, self.image_size * self.image_size)
-        print("output shape: ", out.shape)
+        # print("output shape: ", out.shape)
 
         return out
 

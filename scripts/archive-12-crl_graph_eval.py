@@ -69,56 +69,63 @@ print("modes_gt: ", modes_gt[0])
 
 gt_adj_list = extract_adjacency_matrix(links_coeffs, n_modes_gt, tau)
 
-print(gt_adj_list.shape)
-print(gt_adj_list[0])
+print("gt_adj_list.shape: ", gt_adj_list.shape)
+print("gt_adj_list[0]: ", gt_adj_list[0])
 
-# datamodule = CausalClimateDataModule(
-#     # Required parameters for ClimateDataModule
-#     in_var_ids=["savar"],
-#     out_var_ids=["savar"],  # Same as input for SAVAR
-#     train_years="2015-2100",
-#     train_historical_years="1950-2014",
-#     test_years="2015-2100",  # Same as train for SAVAR
-#     val_split=0.1,  # 10% validation split
-#     seq_to_seq=True,
-#     channels_last=False,
-#     train_scenarios=["savar"],
-#     test_scenarios=["savar"],
-#     train_models="savar",
-#     eval_batch_size=64,
-#     num_workers=0,
-#     pin_memory=False,
-#     load_train_into_mem=True,
-#     load_test_into_mem=True,
-#     verbose=True,
-#     seed=42,
-#     seq_len=12,
-#     data_dir="",  # Not used for SAVAR
-#     output_save_dir=f"{SCRATCH_DIR}/data/SAVAR_DATA_TEST",
-#     num_ensembles=1,
-#     lon=LONGITUDE,
-#     lat=LATITUDE,
-#     num_levels=1,
-#     global_normalization=True,
-#     seasonality_removal=False,
-#     reload_climate_set_data=True,
-#     # Required parameters for CausalClimateDataModule
-#     tau=TAU,
-#     future_timesteps=FUTURE_TIMESTEPS,
-#     num_months_aggregated=1,
-#     train_val_interval_length=100,
-#     # SAVAR specific parameters
-#     time_len=10000,
-#     comp_size=10,
-#     noise_val=0.2,
-#     n_per_col=2,
-#     difficulty="med_easy",
-#     seasonality=False,
-# )
-#
-# datamodule.setup()
+print("=====loading datamodule=====")
+datamodule = CausalClimateDataModule(
+    # Required parameters for ClimateDataModule
+    in_var_ids=["savar"],
+    out_var_ids=["savar"],  # Same as input for SAVAR
+    train_years="2015-2100",
+    train_historical_years="1950-2014",
+    test_years="2015-2100",  # Same as train for SAVAR
+    val_split=0.1,  # 10% validation split
+    seq_to_seq=True,
+    channels_last=False,
+    train_scenarios=["savar"],
+    test_scenarios=["savar"],
+    train_models="savar",
+    eval_batch_size=64,
+    num_workers=0,
+    pin_memory=False,
+    load_train_into_mem=True,
+    load_test_into_mem=True,
+    verbose=True,
+    seed=1,
+    seq_len=12,
+    data_dir="",  # Not used for SAVAR
+    output_save_dir=f"{SCRATCH_DIR}/data/SAVAR_DATA_TEST",
+    num_ensembles=1,
+    lon=20,
+    lat=20,
+    num_levels=1,
+    global_normalization=True,
+    seasonality_removal=False,
+    reload_climate_set_data=True,
+    # Required parameters for CausalClimateDataModule
+    tau=TAU,
+    future_timesteps=FUTURE_TIMESTEPS,
+    num_months_aggregated=1,
+    train_val_interval_length=100,
+    # SAVAR specific parameters
+    time_len=10000,
+    comp_size=10,
+    noise_val=0.2,
+    n_per_col=2,
+    difficulty="easy",
+    seasonality=False,
+)
 
-# savar_gt = datamodule.savar_gt_adj
+datamodule.setup()
+
+savar_gt = datamodule.savar_gt_adj
+savar_gt_modes = datamodule.savar_gt_modes
+
+print("savar_gt.shape: ", savar_gt.shape)
+print("savar_gt_modes.shape: ", savar_gt_modes.shape)
+
+print("savar_gt_modes: ", savar_gt_modes)
 
 plotter = Plotter()
 

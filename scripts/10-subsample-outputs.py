@@ -1,4 +1,4 @@
-from causal_graph_comparison.subsample import get_quadrant_centres, subsample_outputs
+from causal_graph_comparison.dim_reduction import get_quadrant_centres, subsample_outputs
 import numpy as np
 
 TIMESTAMP = "2025_07_08_18_53_00"

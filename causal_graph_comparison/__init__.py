@@ -12,8 +12,6 @@ DATA_DIR = PROJECT_ROOT / "data"
 CONFIGS_DIR = PROJECT_ROOT / "configs"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
-OUTPUTS_DIR = PROJECT_ROOT / "outputs"
-
 # TODO: if os is mac, find different scratch path vs linux
 if sys.platform == "linux":
     SCRATCH_DIR = Path.home() / "scratch"
@@ -25,3 +23,4 @@ else:
     print("CGC: Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
 
 MODELS_DIR = SCRATCH_DIR / "cgc" / "models"
+OUTPUTS_DIR = SCRATCH_DIR / "cgc" / "outputs"
