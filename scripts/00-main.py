@@ -1,14 +1,11 @@
 import argparse
-import os
-import shutil
-from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from climatem.model.tsdcd_latent import LatentTSDCD
 import numpy as np
 import torch
 import wandb
 from math import sqrt
 
-from causal_graph_comparison import CONFIGS_DIR
+from causal_graph_comparison import * # Directory paths
 from causal_graph_comparison.picabu import train_picabu
 from causal_graph_comparison.picabu_helpers import load_picabu_config
 from causal_graph_comparison.savar import generate_savar_data
@@ -90,7 +87,7 @@ device = torch.device(
 
 # generate savar data
 datamodule = generate_savar_data(
-    experiment_params, data_params, savar_params, train_params, reload_data=False
+    experiment_params, data_params, savar_params, train_params, reload_data=True
 )
 
 # generate train and test dataloaders
@@ -108,6 +105,7 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 # ------ Train picabu on savar for "ground truth" causal graph ------
+# saves results to scratch/results/SAVAR_DATA_TEST/picabu-modes_{modes}-diff_{difficulty}-seed_{seed}/ (graph)
 
 print("=== training picabu on savar")
 wandb.init(project="climatem", config={"model": "picabu", **wandb_dict})
@@ -126,7 +124,7 @@ wandb.finish()
 
 # ------ Train emulators on savar ------
 
-# 1) Train vae --> saves vae.pth
+# 1) Train vae --> saves scratch/cgc/models/vae-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
 print("=== training picabu as vae on savar")
 wandb.init(project="climatem", config={"model": "vae", **wandb_dict})
 vae_path = train_vae(
@@ -143,7 +141,7 @@ vae_path = train_vae(
 )
 wandb.finish()
 
-# 2) Train mlp --> saves mlp.pth
+# 2) Train mlp --> saves scratch/cgc/models/mlp-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
 mlp_input_size = experiment_params.d_x * experiment_params.tau
 mlp_output_size = experiment_params.d_x * experiment_params.future_timesteps
 mlp_layers = trained_model_params["mlp"]["model_params"]["num_layers"]
@@ -165,7 +163,7 @@ mlp_path = run_trainer(
 )
 wandb.finish()
 
-# 3) Train lstm --> saves lstm.pth
+# 3) Train lstm --> saves scratch/cgc/models/lstm-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
 input_size = experiment_params.d_x
 num_layers = trained_model_params["lstm"]["model_params"]["num_layers"]
 
@@ -186,7 +184,7 @@ lstm_path = run_trainer(
 )
 wandb.finish()
 
-# 4) Train cnn --> saves cnn.pth
+# 4) Train cnn --> saves scratch/cgc/models/cnn-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
 cnn_input_channels = experiment_params.tau
 cnn_output_channels = experiment_params.future_timesteps
 cnn_image_size = experiment_params.lon
@@ -210,9 +208,10 @@ cnn_path = run_trainer(
 )
 wandb.finish()
 
-# ------ Train causal representation learning on emulators to learn their causal graphs ------
+# ------ Run causal representation learning (picabu) on emulators to learn their causal graphs ------
 
-# 1) Train picabu on mlp --> saves picabu_mlp.npy (graph)
+# 1) Train picabu on mlp --> saves scratch/results/SAVAR_DATA_TEST/picabu-mlp-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
+
 mlp_model = torch.load(mlp_path, map_location=device, weights_only=False)
 
 wandb.init(project="climatem", config={"model": "picabu-mlp", **wandb_dict})
@@ -231,7 +230,7 @@ train_picabu(
 )
 wandb.finish()
 
-# 2) Train picabu on lstm --> saves picabu_lstm.npy (graph)
+# 2) Train picabu on lstm --> saves scratch/results/SAVAR_DATA_TEST/picabu-lstm-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
 lstm_model = torch.load(lstm_path, map_location=device, weights_only=False)
 
 wandb.init(project="climatem", config={"model": "picabu-lstm", **wandb_dict})
@@ -250,7 +249,7 @@ train_picabu(
 )
 wandb.finish()
 
-# 3) Train picabu on cnn --> saves picabu_cnn.npy (graph)
+# 3) Train picabu on cnn --> saves scratch/results/SAVAR_DATA_TEST/picabu-cnn-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
 cnn_model = torch.load(cnn_path, map_location=device, weights_only=False)
 
 wandb.init(project="climatem", config={"model": "picabu-cnn", **wandb_dict})
@@ -269,10 +268,12 @@ train_picabu(
 )
 wandb.finish()
 
-# 4) Train picabu on vae --> saves picabu_vae.npy (graph)
+# 4) Train picabu on vae --> saves scratch/results/SAVAR_DATA_TEST/picabu-vae-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
 vae_state_dict = torch.load(vae_path, map_location=device)
 
-# Since vae is saved as a state_dict, we need to recreate the model
+# Since vae is just picabu with constraints turned off, we use picabu training pipeline
+# which saves model as a state_dict, so we need to recreate the model
+
 vae_model = LatentTSDCD(
     num_layers=picabu_params.num_layers,
     num_hidden=picabu_params.num_hidden,
@@ -327,60 +328,91 @@ wandb.finish()
 
 # ------ Run causal discovery on emulators to learn their causal graphs ------
 
-n_samples = trained_model_params["common"]["test_params"]["test_batch_size"]
+# load inference params from config file
+n_samples = trained_model_params["common"]["test_params"]["num_samples"]
 rollouts = trained_model_params["common"]["test_params"]["rollout_timesteps"]
+inference_batch_size = trained_model_params["common"]["test_params"]["inference_batch_size"]
 
-# 1) run causal discovery on mlp --> saves causal_discovery_mlp.npy (graph)
+# 1) run causal discovery on mlp --> saves scratch/cgc/outputs/mlp-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
 
 ## 1.1) run inference - create 1000 samples 20 timesteps
 print(f"Running inference on mlp: {n_samples} samples, {rollouts} timesteps...")
-run_rollouts(mlp, device, test_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+
+# create inference loader from test dataset with batch size of 1000 (i.e. pass all samples at once)
+inference_loader = torch.utils.data.DataLoader(
+    test_dataset, batch_size=inference_batch_size, shuffle=False
+)
+run_rollouts(mlp, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
 ## 1.2) subsample outputs
 print("Spatial subsampling on mlp outputs...")
+# TODO: add scripts/10-subsample-outputs.py to pipeline
 
 ## 1.3) run causal discovery
+# TODO: add scripts/09-causal-discovery-1000samples.py to pipeline
 
-# 2) Run causal discovery on lstm --> saves causal_discovery_lstm.npy (graph)
+# 2) Run causal discovery on lstm 
+## 2.1) run inference --> saves scratch/cgc/outputs/lstm-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+## 2.2) subsample outputs
+## 2.3) run causal discovery
 
-# 3) Run causal discovery on cnn --> saves causal_discovery_cnn.npy (graph)
+# 3) Run causal discovery on cnn 
+## 3.1) run inference --> saves scratch/cgc/outputs/cnn-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+## 3.2) subsample outputs
+## 3.3) run causal discovery
 
-# 4) Run causal discovery on vae --> saves causal_discovery_vae.npy (graph)
+# 4) Run causal discovery on vae 
+## 4.1) run inference --> saves scratch/cgc/outputs/vae-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+## 4.2) subsample outputs
+## 4.3) run causal discovery
+
+# 5) Run causal discovery on picabu trained on savar (ground truth) 
+## 5.1) create dataset from targets (1000 samples, 20 timesteps)
+## 5.2) subsample outputs
+## 5.3) run causal discovery
 
 # --- PART 2: EVALUATION
 
-# permute learned graph outputs using ground truth
+# 1) Permute learned graph outputs using ground truth so modes are in same order as in ground truth
 
-# permuted_crl_graph_picabu = permute_graph(datamodule, experiment_params, savar_params, "picabu")
-# permuted_crl_graph_mlp = permute_graph(datamodule, experiment_params, savar_params, "picabu_mlp")
-# permuted_crl_graph_lstm = permute_graph(datamodule, experiment_params, savar_params, "picabu_lstm")
-# permuted_crl_graph_cnn = permute_graph(datamodule, experiment_params, savar_params, "picabu_cnn")
-# permuted_crl_graph_vae = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
+permuted_crl_graph_picabu = permute_graph(datamodule, experiment_params, savar_params, "picabu")
+permuted_crl_graph_mlp = permute_graph(datamodule, experiment_params, savar_params, "picabu_mlp")
+permuted_crl_graph_lstm = permute_graph(datamodule, experiment_params, savar_params, "picabu_lstm")
+permuted_crl_graph_cnn = permute_graph(datamodule, experiment_params, savar_params, "picabu_cnn")
+permuted_crl_graph_vae = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
 
-# STEP apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
+# 2) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
+# TODO: add scripts/11-graph-eval_mlp.py to pipeline
+# TODO: implement Distance Average Causal Effect: https://www.nature.com/articles/s41467-024-50813-z
 
-# STEP apply causal & structural comparison metrics to lstm (picabu, causal_discovery)
+# 3) Apply causal & structural comparison metrics to lstm (picabu, causal_discovery)
 
-# STEP apply causal & structural comparison metrics to cnn (picabu, causal_discovery)
+# 4) Apply causal & structural comparison metrics to cnn (picabu, causal_discovery)
 
-# STEP apply causal & structural comparison metrics to vae (picabu, causal_discovery)
+# 5) Apply causal & structural comparison metrics to vae (picabu, causal_discovery)
 
-# STEP run RMSE, statistical metrics & psd on all trained models
+# 6) Run RMSE, statistical metrics on all trained models
+
+# 7) Apply power spectral density script from climatem module to: inference from models, targets 
+
+# 7) Plotting...
 
 # --- PART 3: INTERVENTIONS
 
-# STEP perturb data
+# 1) Perturb data
 
-# STEP run picabu on all trained models with perturbed data
+# 2) Run picabu on all trained models with perturbed data
 
-# STEP run inference on all trained models w/ perturbed data
+# 3) Run inference on all trained models w/ perturbed data
 
-# STEP get "gt" target from savar model for perturbed data
+# 4) Get "gt" target from savar model for perturbed data
 
-# STEP apply RMSE on inference results
+# 5) Apply RMSE on inference results
 
 # --------- PART 0: GRAPH EVALUATION ---------
 
-# create permuted dataset of graphs
+# 1) Create permuted dataset of graphs
+# TODO: use 01-dataset-builder.py to create permuted dataset of graphs
 
-# apply comparison metrics & do qualitative analysis on graphs
+# 2) Apply comparison metrics & do qualitative analysis on graphs
+# TODO: use graph-eval.py 

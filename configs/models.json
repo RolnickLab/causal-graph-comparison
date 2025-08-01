@@ -5,8 +5,9 @@
             "log_interval": 10
         },
         "test_params": {
-            "test_batch_size": 1000,
-            "rollout_timesteps": 20
+            "inference_batch_size": 1000,
+            "rollout_timesteps": 20,
+            "num_samples": 1000
         },
         "exp_params": {
             "exp_path": "$SCRATCH/training_results",

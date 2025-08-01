@@ -5,6 +5,7 @@ from causal_graph_comparison import OUTPUTS_DIR
 
 def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, difficulty, seed):
 
+    n_samples = n_samples - 1 # for indexing starting at 0
     data_list = []
     target_list = []
     output_list = []
@@ -22,7 +23,6 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
         h0 = None
         c0 = None
         for step in range(rollouts):
-            print("Step: ", step)
             if model.name == "lstm":
                 output, h0, c0 = model(data, h0=h0, c0=c0, return_hidden=True)
             
@@ -36,22 +36,29 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
 
             output_list.append(output.squeeze().cpu().numpy())
 
+            # roll data one timestep over
             data = torch.roll(data, shifts=-1, dims=1)
 
-            data[:, -1, :] = output
+            # replace last timestep with output
+            data[:, -1, :, :] = output[:,0,:,:]
 
         target_list = []
         for i in range(rollouts):
-            target_list.append(target[i : n_samples-1 - rollouts + i].squeeze().cpu().numpy())
+            target_list.append(target[i : n_samples - rollouts + i].squeeze().cpu().numpy())
+
+    # print("DBG target_list: ", target_list[0])
+    # print("DBG length of target_list: ", len(target_list))
+    # for i in range(len(target_list)):
+    #     print(f"DBG target_list[{i}].shape: ", target_list[i].shape)
 
     # Convert lists to arrays
-    data_array = np.array(data_list)[: n_samples-1 - rollouts]
+    data_array = np.array(data_list)[: n_samples - rollouts]
     target_array = np.array(target_list)
-    output_array = np.array(output_list)[:, : n_samples-1 - rollouts]
+    output_array = np.array(output_list)[:, : n_samples - rollouts]
 
-    print("Data array shape: ", data_array.shape)
-    print("Target array shape: ", target_array.shape)
-    print("Output array shape: ", output_array.shape)
+    # print("Data array shape: ", data_array.shape)
+    # print("Target array shape: ", target_array.shape)
+    # print("Output array shape: ", output_array.shape)
 
     np.savez(
         OUTPUTS_DIR / f"{model.name}-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz",

@@ -95,7 +95,7 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
 
 
 def run_trainer(datamodule, model, params, dataset_type, modes, difficulty, seed, device):
-    save_name = f"{model.name}-{dataset_type}-modes_{modes}-diff_{difficulty}-seed_{seed}"
+    save_name = f"{model.name}-modes_{modes}-diff_{difficulty}-seed_{seed}"
 
     # check if model already exists
     model_path = MODELS_DIR / f"{save_name}.pt"
