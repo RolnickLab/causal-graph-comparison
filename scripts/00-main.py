@@ -418,5 +418,7 @@ permuted_crl_graph_vae = permute_graph(datamodule, experiment_params, savar_para
 # 1) Create permuted dataset of graphs
 # TODO: use 01-dataset-builder.py to create permuted dataset of graphs
 
-# 2) Apply comparison metrics & do qualitative analysis on graphs
+# 2) Apply comparison metrics 
 # TODO: use graph-eval.py 
+
+# 3) Do qualitative analysis on graphs
