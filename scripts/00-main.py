@@ -381,21 +381,25 @@ permuted_crl_graph_lstm = permute_graph(datamodule, experiment_params, savar_par
 permuted_crl_graph_cnn = permute_graph(datamodule, experiment_params, savar_params, "picabu_cnn")
 permuted_crl_graph_vae = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
 
-# 2) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
+# 2) Flatten temporal graphs
+# TODO: integrate flatten_temporal_adjacency_graph from causal_graph_comparison/utils.py into pipeline 
+# TODO: make sure matrix shape is taken into account [parent, time, child] vs [time, parent, child]
+
+# 3) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
 # TODO: add scripts/11-graph-eval_mlp.py to pipeline
 # TODO: implement Distance Average Causal Effect: https://www.nature.com/articles/s41467-024-50813-z
 
-# 3) Apply causal & structural comparison metrics to lstm (picabu, causal_discovery)
+# 4) Apply causal & structural comparison metrics to lstm (picabu, causal_discovery)
 
-# 4) Apply causal & structural comparison metrics to cnn (picabu, causal_discovery)
+# 5) Apply causal & structural comparison metrics to cnn (picabu, causal_discovery)
 
-# 5) Apply causal & structural comparison metrics to vae (picabu, causal_discovery)
+# 6) Apply causal & structural comparison metrics to vae (picabu, causal_discovery)
 
-# 6) Run RMSE, statistical metrics on all trained models
+# 7) Run RMSE, statistical metrics on all trained models
 
-# 7) Apply power spectral density script from climatem module to: inference from models, targets 
+# 8) Apply power spectral density script from climatem module to: inference from models, targets 
 
-# 7) Plotting...
+# 9) Plotting...
 
 # --- PART 3: INTERVENTIONS
 
