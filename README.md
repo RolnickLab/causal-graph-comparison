@@ -1,5 +1,7 @@
 # Causal graph comparison 
 
+Task list migrated here: https://github.com/orgs/RolnickLab/projects/22/views/3?sortedBy%5Bdirection%5D=&sortedBy%5BcolumnId%5D=
+
 ## Installation
 
 ```python
@@ -10,11 +12,11 @@ pip install -e . # Install the package in editable mode
 
 ## TODO
 - [x] Make MLP into reusable module
-- [ ] Replace all vars with config
+- [x] Replace all vars with config
 
 - [x] subsampling middle px of modes
 - [x] figure out if test loader is sequential 
-- [ ] implement VAE
+- [x] implement VAE
 - [x] implement LSTM
 - [x] implement MLP
 - [x] run inference on PICABU (rolloutbf.py)
@@ -27,15 +29,15 @@ pip install -e . # Install the package in editable mode
 - [x] run PCMCI+ from tigris package on mlp output
 
 # CURRENT
-- [ ] find min batch size to recover gt on target
+- [ ] find minimum batch size to recover gt on target
 - [x] run multi pcmci on mlp
 - [x] run 1000 batch on lstm
 - [x] run multi pcmci on lstm
 - [ ] run multi pcmci on picabu
-- [ ] Get targets  for picabu outputs (so i have something to plot against)
+- [x] Get targets  for picabu outputs (so i have something to plot against)
 - [ ] run RMSE on mlp output vs ground truth output
-- [ ] run causal graph comparison on mlp output vs ground truth output SAVAR
-- [ ] figure out how to flatten temporal adjacency graph
+- [x] run causal graph comparison on mlp output vs ground truth output SAVAR
+- [x] figure out how to flatten temporal adjacency graph
  
 - [x] Make sure you set tau_min=1 in PCMCI
 - [x] Run PCMCI “hack” on the savar data (GT) to make sure you recover the correct causal graph
@@ -59,7 +61,7 @@ After running PCMCI, run:
 - [ ] Run the bayesian filter and make sure you can recover the corresponding target time series (as initial conditions are taken at random rn)
 
 ### Non-causal PICABU:
-- [ ] Run PICABU after setting the following parameters in the json file: “sparsity_upper_threshold”=1; “ortho_h_threshold”=1000, “ortho_mu_init”=1e-5, “ortho_mu_mult_factor”=1. This set of param will basically deactivate any causal constraint in PICABU
+- [x] Run PICABU after setting the following parameters in the json file: “sparsity_upper_threshold”=1; “ortho_h_threshold”=1000, “ortho_mu_init”=1e-5, “ortho_mu_mult_factor”=1. This set of param will basically deactivate any causal constraint in PICABU
 
 ### Uncertainty analysis (lower priority):
 - [ ] Run each model with multiple initial conditions --> Are the causal graphs constant across initial conditions?
@@ -85,10 +87,10 @@ After running PCMCI, run:
 - [x] is gradient descent not being seeded properly??
 - [x] implement cnn
 - [x] implement vae
-- [ ] make sure mlp, cnn, lstm all take in same input shape
+- [x] make sure mlp, cnn, lstm all take in same input shape
 
-- [ ] understand how learned graphs are generated
-- [ ] orientation of graphs? FROM: column TO: row, gt graph is reversed in time
+- [x] understand how learned graphs are generated
+- [x] orientation of graphs? Anser - FROM: column TO: row, gt graph is reversed in time
 - [x] where does picabu get gt graph from? 
-- [ ] find correct vae run
+- [x] find correct vae run
 - [ ] compare permuted graphs from picabu to learned graphs from pcmci+  
