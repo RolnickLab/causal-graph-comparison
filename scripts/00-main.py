@@ -6,6 +6,7 @@ import wandb
 from math import sqrt
 
 from causal_graph_comparison import * # Directory paths
+from causal_graph_comparison.causal_discovery import causal_discovery
 from causal_graph_comparison.picabu import train_picabu
 from causal_graph_comparison.picabu_helpers import load_picabu_config
 from causal_graph_comparison.savar import generate_savar_data
@@ -15,7 +16,7 @@ from causal_graph_comparison.vae import train_vae
 from causal_graph_comparison.mlp import MLP
 from causal_graph_comparison.lstm import LSTM
 from causal_graph_comparison.cnn import CNN
-from causal_graph_comparison.graph_permutation import permute_graph
+from causal_graph_comparison.graph_utils import binarize_array, flatten_temporal_adjacency_graph, permute_graph
 from causal_graph_comparison.rollouts import run_rollouts
 
 # ---- CMD LINE ARGS
@@ -333,57 +334,81 @@ n_samples = trained_model_params["common"]["test_params"]["num_samples"]
 rollouts = trained_model_params["common"]["test_params"]["rollout_timesteps"]
 inference_batch_size = trained_model_params["common"]["test_params"]["inference_batch_size"]
 
+# create inference loader from test dataset with batch size of 1000 (i.e. pass all samples at once)
+inference_loader = torch.utils.data.DataLoader(
+    test_dataset, batch_size=inference_batch_size, shuffle=False
+)
+
 # 1) run causal discovery on mlp --> saves scratch/cgc/outputs/mlp-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
 
 ## 1.1) run inference - create 1000 samples 20 timesteps
 print(f"Running inference on mlp: {n_samples} samples, {rollouts} timesteps...")
 
-# create inference loader from test dataset with batch size of 1000 (i.e. pass all samples at once)
-inference_loader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=inference_batch_size, shuffle=False
-)
-run_rollouts(mlp, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+mlp_rollouts_path = run_rollouts(mlp_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
-## 1.2) subsample outputs
-print("Spatial subsampling on mlp outputs...")
-# TODO: add scripts/10-subsample-outputs.py to pipeline
-
-## 1.3) run causal discovery
-# TODO: add scripts/09-causal-discovery-1000samples.py to pipeline
+## 1.2) run causal discovery
+mlp_graph, mlp_val_matrix, mlp_p_matrix, mlp_corr_matrix, mlp_var_names = causal_discovery(timeseries=mlp_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=mlp_model.name, difficulty=args.difficulty, seed=args.seed)
 
 # 2) Run causal discovery on lstm 
 ## 2.1) run inference --> saves scratch/cgc/outputs/lstm-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
-## 2.2) subsample outputs
-## 2.3) run causal discovery
+print(f"Running inference on lstm: {n_samples} samples, {rollouts} timesteps...")
+lstm_rollouts_path = run_rollouts(lstm_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+
+## 2.2) run causal discovery
+lstm_graph, lstm_val_matrix, lstm_p_matrix, lstm_corr_matrix, lstm_var_names = causal_discovery(timeseries=lstm_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=lstm_model.name, difficulty=args.difficulty, seed=args.seed)
 
 # 3) Run causal discovery on cnn 
 ## 3.1) run inference --> saves scratch/cgc/outputs/cnn-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
-## 3.2) subsample outputs
-## 3.3) run causal discovery
+print(f"Running inference on cnn: {n_samples} samples, {rollouts} timesteps...")
+cnn_rollouts_path = run_rollouts(cnn_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+
+## 3.2) run causal discovery
+cnn_graph, cnn_val_matrix, cnn_p_matrix, cnn_corr_matrix, cnn_var_names = causal_discovery(timeseries=cnn_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=cnn_model.name, difficulty=args.difficulty, seed=args.seed)
 
 # 4) Run causal discovery on vae 
 ## 4.1) run inference --> saves scratch/cgc/outputs/vae-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
-## 4.2) subsample outputs
-## 4.3) run causal discovery
+print(f"Running inference on vae: {n_samples} samples, {rollouts} timesteps...")
+vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
-# 5) Run causal discovery on picabu trained on savar (ground truth) 
-## 5.1) create dataset from targets (1000 samples, 20 timesteps)
-## 5.2) subsample outputs
-## 5.3) run causal discovery
+## 4.2) run causal discovery
+vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(timeseries=vae_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=vae_model.name, difficulty=args.difficulty, seed=args.seed)
+
+# 5) Run causal discovery on savar ground truth
+## 5.1) get targets saved from rollout (1000 samples, 20 timesteps)
+rollout_targets = np.load(mlp_rollouts_path)['targets']
+## 5.2) run causal discovery
+savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(timeseries=rollout_targets, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name="savar", difficulty=args.difficulty, seed=args.seed)
 
 # --- PART 2: EVALUATION
 
-# 1) Permute learned graph outputs using ground truth so modes are in same order as in ground truth
+# 1) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
 
-permuted_crl_graph_picabu = permute_graph(datamodule, experiment_params, savar_params, "picabu")
-permuted_crl_graph_mlp = permute_graph(datamodule, experiment_params, savar_params, "picabu_mlp")
-permuted_crl_graph_lstm = permute_graph(datamodule, experiment_params, savar_params, "picabu_lstm")
-permuted_crl_graph_cnn = permute_graph(datamodule, experiment_params, savar_params, "picabu_cnn")
-permuted_crl_graph_vae = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
+picabu_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu")
+mlp_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_mlp")
+lstm_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_lstm")
+cnn_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_cnn")
+vae_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
 
-# 2) Flatten temporal graphs
-# TODO: integrate flatten_temporal_adjacency_graph from causal_graph_comparison/utils.py into pipeline 
-# TODO: make sure matrix shape is taken into account [parent, time, child] vs [time, parent, child]
+# 2a) Flatten temporal adjacency graphs: causal representation learning
+gt_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=picabu_permuted_crl_graph)
+mlp_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=mlp_permuted_crl_graph)
+lstm_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=lstm_permuted_crl_graph)
+cnn_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=cnn_permuted_crl_graph)
+vae_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=vae_permuted_crl_graph)
+
+# 2b) Flatten temporal adjacency graphs: causal discovery
+gt_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=savar_val_matrix)
+mlp_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=mlp_val_matrix)
+lstm_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=lstm_val_matrix)
+cnn_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=cnn_val_matrix)
+vae_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=vae_val_matrix)
+
+# Binarize causal discovery graphs
+gt_flat_cd_graph = binarize_array(gt_flat_cd_graph)
+mlp_flat_cd_graph = binarize_array(mlp_flat_cd_graph)
+lstm_flat_cd_graph = binarize_array(lstm_flat_cd_graph)
+cnn_flat_cd_graph = binarize_array(cnn_flat_cd_graph)
+vae_flat_cd_graph = binarize_array(vae_flat_cd_graph)
 
 # 3) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
 # TODO: add scripts/11-graph-eval_mlp.py to pipeline
@@ -400,6 +425,10 @@ permuted_crl_graph_vae = permute_graph(datamodule, experiment_params, savar_para
 # 8) Apply power spectral density script from climatem module to: inference from models, targets 
 
 # 9) Plotting...
+    # explore-mlp-output.ipynb
+    # causal-discovery-mlp.ipynb
+    # causal-discovery-groundtruth.ipynb
+    # causal-discovery-mlp-1000samples.ipynb
 
 # --- PART 3: INTERVENTIONS
 

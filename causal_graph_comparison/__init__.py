@@ -23,4 +23,4 @@ else:
     print("CGC: Detected non-Linux system, using scratch directory: ", SCRATCH_DIR)
 
 MODELS_DIR = SCRATCH_DIR / "cgc" / "models"
-OUTPUTS_DIR = SCRATCH_DIR / "cgc" / "outputs"
+OUTPUTS_DIR = SCRATCH_DIR / "results" / "cgc" / "outputs"

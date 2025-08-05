@@ -30,10 +30,17 @@ def get_quadrant_centres(outputs, num_modes):
             x = i * quadrant_size + offset
             y = j * quadrant_size + offset
             centres.append((x, y))
-            
-    return centres
 
-def subsample_outputs(outputs, num_modes):
+    linear_indices = []
+    for i, (x, y) in enumerate(centres):
+        print("x, y: ", x, y)
+        linear_idx = x * dimensions + y
+        print("linear_idx: ", linear_idx)
+        linear_indices.append(linear_idx)
+            
+    return centres, linear_indices
+
+def spatial_subsample(outputs, num_modes):
     """Subsample the outputs to the given centres.
 
     Args:
@@ -43,33 +50,26 @@ def subsample_outputs(outputs, num_modes):
     Returns:
         numpy.ndarray: Subsampled outputs with shape (num_samples, modes_per_side, modes_per_side)
     """
-    # Get dimensions of outputs
-    num_samples = outputs.shape[0]
-    # print(f"num_samples: {num_samples}")
-    # print(f"outputs.shape: {outputs.shape}")
-    modes_per_side = int(sqrt(num_modes))
-    # print(f"modes_per_side: {modes_per_side}")
+
+    if len(outputs.shape) != 3:
+        raise ValueError("Expecting 3D array of size (num_samples, num_timesteps, num_features), got shape: ", outputs.shape)
     
     # Get the centres for subsampling
-    centres = get_quadrant_centres(outputs, num_modes)
-    
-    # Calculate dimensions of the 2D array
-    dimensions = int(sqrt(outputs.shape[-1]))
-    
-    # Initialize array to store subsampled outputs
-    subsampled = np.zeros((num_samples, modes_per_side, modes_per_side))
-    print("Subsampled shape: ", subsampled.shape)
+    _, linear_indices = get_quadrant_centres(outputs, num_modes)
 
-    for i, output in enumerate(outputs):
-        # Reshape 1D output to 2D for indexing
-        output_2d = output.reshape(dimensions, dimensions)
+    subsampled = outputs[:,:, linear_indices]
 
-        for j, (x, y) in enumerate(centres):
-            # Calculate row and column indices for the subsampled array
-            row = j // modes_per_side
-            col = j % modes_per_side
-            
-            # Extract value at the centre coordinates
-            subsampled[i, row, col] = output_2d[x, y]
+    # print(subsampled.shape)
 
     return subsampled
+ 
+if __name__ == "__main__":
+    outputs = np.zeros((975, 20, 3600))
+
+    ndim = int(sqrt(outputs.shape[-1]))
+    centres, linear_indices = get_quadrant_centres(outputs, 4)
+    outputs[:,:, linear_indices] = 1
+
+    subsampled = spatial_subsample(outputs, 4)
+    print(subsampled.shape)
+    print(subsampled[0,2,:])

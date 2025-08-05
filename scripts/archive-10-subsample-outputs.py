@@ -1,10 +1,11 @@
-from causal_graph_comparison.dim_reduction import get_quadrant_centres, subsample_outputs
+from causal_graph_comparison.dim_reduction import get_quadrant_centres, spatial_subsample
 import numpy as np
+from causal_graph_comparison import OUTPUTS_DIR
 
-TIMESTAMP = "2025_07_08_18_53_00"
+TIMESTAMP = "2025_07_10_00_04_54"
 NUM_MODES = 4
 
-mlp_output = np.load(f"../outputs/test_results-{TIMESTAMP}.npz")
+mlp_output = np.load(f"{OUTPUTS_DIR}/test_results-{TIMESTAMP}.npz")
 
 inputs = mlp_output["inputs"]
 targets = mlp_output["target"]
@@ -19,7 +20,7 @@ centres = get_quadrant_centres(outputs, NUM_MODES)
 print("Centres: ", centres)
 
 # Subsample the outputs
-subsampled_outputs = subsample_outputs(outputs, NUM_MODES)
+subsampled_outputs = spatial_subsample(outputs, NUM_MODES)
 
 print("Subsampled outputs shape: ", subsampled_outputs.shape)
 print("First sample subsampled output:")

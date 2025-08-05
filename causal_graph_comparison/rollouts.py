@@ -56,13 +56,20 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
     target_array = np.array(target_list)
     output_array = np.array(output_list)[:, : n_samples - rollouts]
 
-    # print("Data array shape: ", data_array.shape)
-    # print("Target array shape: ", target_array.shape)
-    # print("Output array shape: ", output_array.shape)
+    # switch order of dimensions to match n_samples, rollouts, dimensions
+    target_array = np.moveaxis(target_array, 1, 0)
+    output_array = np.moveaxis(output_array, 1, 0)
 
+    print("Data array shape: ", data_array.shape) # inputs = n_samples, tau, dimensions
+    print("Target array shape: ", target_array.shape) # targets = n_samples, rollouts, dimensions
+    print("Output array shape: ", output_array.shape) # outputs = n_samples, rollouts, dimensions
+
+    save_path = OUTPUTS_DIR / f"{model.name}-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
+    print(f"Saving rollouts to {save_path}")
     np.savez(
-        OUTPUTS_DIR / f"{model.name}-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz",
+        save_path,
         inputs=data_array,
-        target=target_array,
+        targets=target_array,
         outputs=output_array,
     )
+    return save_path
