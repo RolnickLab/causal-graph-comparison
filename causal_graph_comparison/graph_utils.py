@@ -76,20 +76,15 @@ def permute_graph(datamodule, exp_params, savar_params, model_name):
         plot_through_time=True,
     )
 
-    save_path = results.results_path / Path("permuted_learned_temporal_graph.npy")
+    save_name = f"picabu_cdsd-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+    save_path = OUTPUTS_DIR / Path(save_name)
 
-    np.save(save_path, permuted_temporal_matrix)
+    np.savez(save_path, val_matrix=permuted_temporal_matrix)
 
     return permuted_temporal_matrix
 
-def flatten_temporal_adjacency_graph(temporal_adjacency_graph):
-    """
-    Flatten the temporal adjacency graph.
-    """
-    return temporal_adjacency_graph.reshape(-1, temporal_adjacency_graph.shape[-1])
 
-
-def flatten_temporal_adjacency_graph(shape: str, density_output: str = 'sparse', density_input: str = 'sparse', graph: np.ndarray = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None) -> np.ndarray:
+def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None, graph: np.ndarray = None, density_output: str = 'sparse', density_input: str = 'sparse') -> np.ndarray:
     """Flatten a temporal adjacency graph.
 
     Args:
@@ -103,14 +98,22 @@ def flatten_temporal_adjacency_graph(shape: str, density_output: str = 'sparse',
     print("Initial graph:\n", graph)
     print("")
 
+    if causal_method != "cd" and causal_method != "crl" and causal_method is not None:
+        raise ValueError(f"Invalid causal method: {causal_method}, please choose from 'cd' (causal discovery) or 'crl' (causal representation learning)")
+
     if not all(density_arg in ["dense", "sparse"] for density_arg in [density_output, density_input]):
         raise ValueError(f"Invalid density: {density_output} and {density_input}, please choose from 'dense' or 'sparse'")
-   
+
     # if graph is not provided, load it from the results path
     if graph is None:
-        results = PicabuResultsPaths(exp_params, savar_params, model_name)
-        temporal_graph_path = results.results_path / Path("permuted_learned_temporal_graph.npy")
-        temporal_graph = np.load(temporal_graph_path)
+        try:
+            if causal_method == "crl":
+                temporal_graph_path = f"{OUTPUTS_DIR}/picabu_cdsd-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+            else: # causal_method == "cd"
+                temporal_graph_path = f"{OUTPUTS_DIR}/pcmci_causal_discovery-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+            temporal_graph = np.load(temporal_graph_path)['val_matrix']
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Temporal graph not found, check your exp_params, savar_params, and model_name")
 
     else:
         temporal_graph = graph
@@ -139,37 +142,46 @@ def flatten_temporal_adjacency_graph(shape: str, density_output: str = 'sparse',
             for j in range(num_vars):
                 for k in range(time_steps):
                     # DBG:
-                    print(f"i: {i}, j: {j}, k: {k}")
-                    print(f"graph[i, j, k]: {graph[i, j, k]}")
-                    print(f"new row: {i * time_steps + k}")
-                    print(f"new col: {j * time_steps + k}")
-                    print("=============")
+                    # print(f"i: {i}, j: {j}, k: {k}")
+                    # print(f"graph[i, j, k]: {graph[i, j, k]}")
+                    # print(f"new row: {i * time_steps + k}")
+                    # print(f"new col: {j * time_steps + k}")
+                    # print("=============")
 
                     flattened_graph[i * time_steps + k, j * time_steps] = graph[i, j, k]
 
-                    # Convert to numpy array if not already
-                    if not isinstance(flattened_graph, np.ndarray):
-                        print("Converting matrix to ndarray")
-                        flattened_graph = np.array(flattened_graph)
-
     elif shape == "time_child_parent":
-        print("======= time_child_parent =======")
+        # print("======= time_child_parent =======")
         for i in range(time_steps):
             for j in range(num_vars):
                 for k in range(num_vars):
                     # DBG:
-                    print(f"i: {i}, j: {j}, k: {k}")
-                    print(f"graph[i, j, k]: {graph[i, j, k]}")
-                    print(f"new row: {k * time_steps +i}")
-                    print(f"new col: {j * time_steps}")
-                    print("=============")
+                    # print(f"i: {i}, j: {j}, k: {k}")
+                    # print(f"graph[i, j, k]: {graph[i, j, k]}")
+                    # print(f"new row: {k * time_steps +i}")
+                    # print(f"new col: {j * time_steps}")
+                    # print("=============")
                     flattened_graph[k * time_steps +i, j * time_steps] = graph[i, j, k]
         
-    
-    # populate new adjacency matrix with values from original graph
-    save_path = results.results_path / Path("flattened_learned_temporal_graph.npy")
+    # Convert to numpy array if not already
+    if not isinstance(flattened_graph, np.ndarray):
+        # print("Converting matrix to ndarray")
+        flattened_graph = np.array(flattened_graph)
 
-    np.save(save_path, flattened_graph)
+    # populate new adjacency matrix with values from original graph
+    if causal_method is not None:
+        causal_method_str = f"{causal_method}-"
+    else:
+        causal_method_str = ""
+
+    if exp_params is not None and savar_params is not None and model_name is not None:  
+        save_name = f"{causal_method_str}flattened_graph-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+    else:
+        save_name = f"{causal_method_str}flattened_graph.npz"
+        
+    save_path = OUTPUTS_DIR / Path(save_name)
+
+    np.savez(save_path, val_matrix=flattened_graph)
 
     return flattened_graph
 

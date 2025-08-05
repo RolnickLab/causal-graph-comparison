@@ -91,6 +91,14 @@ datamodule = generate_savar_data(
     experiment_params, data_params, savar_params, train_params, reload_data=True
 )
 
+# print datamodule 
+print("datamodule.savar_gt_adj shape: ", datamodule.savar_gt_adj.shape)
+print("datamodule.savar_gt_modes_weights shape: ", datamodule.savar_gt_modes_weights.shape)
+print("datamodule.savar_links_coeffs (ground truth causal links): ", datamodule.savar_links_coeffs)
+print("datamodule.savar_gt_modes shape: ", datamodule.savar_gt_modes.shape)
+if datamodule.savar_gt_modes_weights is None:
+    raise ValueError("datamodule.savar_gt_modes_weights is None, try setting reload_climate_set_data in data_params to True")
+
 # generate train and test dataloaders
 train_dataset = datamodule._data_train
 test_dataset = datamodule._data_val
@@ -346,8 +354,16 @@ print(f"Running inference on mlp: {n_samples} samples, {rollouts} timesteps...")
 
 mlp_rollouts_path = run_rollouts(mlp_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
+causal_discovery_params = {
+    "num_modes": args.num_modes,
+    "links_coeffs": datamodule.savar_links_coeffs,
+    "tau_max": experiment_params.tau,
+    "difficulty": args.difficulty,
+    "seed": args.seed,
+}
+
 ## 1.2) run causal discovery
-mlp_graph, mlp_val_matrix, mlp_p_matrix, mlp_corr_matrix, mlp_var_names = causal_discovery(timeseries=mlp_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=mlp_model.name, difficulty=args.difficulty, seed=args.seed)
+mlp_graph, mlp_val_matrix, mlp_p_matrix, mlp_corr_matrix, mlp_var_names = causal_discovery(timeseries=mlp_rollouts_path, model_name=mlp_model.name, **causal_discovery_params)
 
 # 2) Run causal discovery on lstm 
 ## 2.1) run inference --> saves scratch/cgc/outputs/lstm-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
@@ -355,7 +371,7 @@ print(f"Running inference on lstm: {n_samples} samples, {rollouts} timesteps..."
 lstm_rollouts_path = run_rollouts(lstm_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
 ## 2.2) run causal discovery
-lstm_graph, lstm_val_matrix, lstm_p_matrix, lstm_corr_matrix, lstm_var_names = causal_discovery(timeseries=lstm_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=lstm_model.name, difficulty=args.difficulty, seed=args.seed)
+lstm_graph, lstm_val_matrix, lstm_p_matrix, lstm_corr_matrix, lstm_var_names = causal_discovery(timeseries=lstm_rollouts_path, model_name=lstm_model.name, **causal_discovery_params)
 
 # 3) Run causal discovery on cnn 
 ## 3.1) run inference --> saves scratch/cgc/outputs/cnn-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
@@ -363,7 +379,7 @@ print(f"Running inference on cnn: {n_samples} samples, {rollouts} timesteps...")
 cnn_rollouts_path = run_rollouts(cnn_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
 ## 3.2) run causal discovery
-cnn_graph, cnn_val_matrix, cnn_p_matrix, cnn_corr_matrix, cnn_var_names = causal_discovery(timeseries=cnn_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=cnn_model.name, difficulty=args.difficulty, seed=args.seed)
+cnn_graph, cnn_val_matrix, cnn_p_matrix, cnn_corr_matrix, cnn_var_names = causal_discovery(timeseries=cnn_rollouts_path, model_name=cnn_model.name, **causal_discovery_params)
 
 # 4) Run causal discovery on vae 
 ## 4.1) run inference --> saves scratch/cgc/outputs/vae-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
@@ -371,13 +387,13 @@ print(f"Running inference on vae: {n_samples} samples, {rollouts} timesteps...")
 vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
 ## 4.2) run causal discovery
-vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(timeseries=vae_rollouts_path, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name=vae_model.name, difficulty=args.difficulty, seed=args.seed)
+vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(timeseries=vae_rollouts_path, model_name=vae_model.name, **causal_discovery_params)
 
 # 5) Run causal discovery on savar ground truth
 ## 5.1) get targets saved from rollout (1000 samples, 20 timesteps)
 rollout_targets = np.load(mlp_rollouts_path)['targets']
 ## 5.2) run causal discovery
-savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(timeseries=rollout_targets, num_modes=args.num_modes, links_coeffs=datamodule.links_coeffs, tau_max=experiment_params.tau, model_name="savar", difficulty=args.difficulty, seed=args.seed)
+savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(timeseries=rollout_targets, model_name="savar", **causal_discovery_params)
 
 # --- PART 2: EVALUATION
 
@@ -390,18 +406,18 @@ cnn_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_para
 vae_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
 
 # 2a) Flatten temporal adjacency graphs: causal representation learning
-gt_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=picabu_permuted_crl_graph)
-mlp_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=mlp_permuted_crl_graph)
-lstm_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=lstm_permuted_crl_graph)
-cnn_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=cnn_permuted_crl_graph)
-vae_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=vae_permuted_crl_graph)
+gt_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=picabu_permuted_crl_graph)
+mlp_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=mlp_permuted_crl_graph)
+lstm_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=lstm_permuted_crl_graph)
+cnn_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=cnn_permuted_crl_graph)
+vae_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=vae_permuted_crl_graph)
 
 # 2b) Flatten temporal adjacency graphs: causal discovery
-gt_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=savar_val_matrix)
-mlp_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=mlp_val_matrix)
-lstm_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=lstm_val_matrix)
-cnn_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=cnn_val_matrix)
-vae_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=vae_val_matrix)
+gt_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=savar_val_matrix)
+mlp_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=mlp_val_matrix)
+lstm_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=lstm_val_matrix)
+cnn_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=cnn_val_matrix)
+vae_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=vae_val_matrix)
 
 # Binarize causal discovery graphs
 gt_flat_cd_graph = binarize_array(gt_flat_cd_graph)

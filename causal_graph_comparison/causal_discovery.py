@@ -73,6 +73,11 @@ def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, d
     Run causal discovery on the outputs, targets, and inputs.
     Accept either array or path to array.
     """
+    output_filename = f"{OUTPUTS_DIR}/pcmci_causal_discovery-{model_name}-modes_{num_modes}-difficulty_{difficulty}-seed_{seed}.npz"
+    if Path(output_filename).exists():
+        print(f"Causal discovery results already exist for {model_name}, skipping...")
+        data = np.load(output_filename)
+        return data['graph'], data['val_matrix'], data['p_matrix'], data['corr_matrix'], data['var_names']
 
     # if timeseries is path to array, load it
     if isinstance(timeseries, Path) or isinstance(timeseries, str):
@@ -98,7 +103,7 @@ def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, d
     results = pcmci.run_pcmciplus(
         tau_max=tau_max,  # Maximum time lag
         tau_min=tau_min,
-        pc_alpha=significance_level  # Significance level #TODO
+        pc_alpha=significance_level  # Significance level 
     )
 
     # Extract results
@@ -123,8 +128,8 @@ def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, d
     plot_causal_graph(graph, val_matrix, var_names, num_modes, difficulty, model_name, seed)
 
     # save results
-    print(f"Saving causal discoveryresults to {OUTPUTS_DIR}/pcmci_causal_discovery-{model_name}-modes_{num_modes}-difficulty_{difficulty}-seed_{seed}.npz")
-    np.savez(f"{OUTPUTS_DIR}/pcmci_causal_discovery-{model_name}-modes_{num_modes}-difficulty_{difficulty}-seed_{seed}.npz", graph=graph, val_matrix=val_matrix, p_matrix=p_matrix, corr_matrix=corr_matrix, var_names=var_names)
+    print(f"Saving causal discovery results to {output_filename}")
+    np.savez(output_filename, graph=graph, val_matrix=val_matrix, p_matrix=p_matrix, corr_matrix=corr_matrix, var_names=var_names)
 
     return graph, val_matrix, p_matrix, corr_matrix, var_names
 

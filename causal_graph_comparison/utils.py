@@ -8,6 +8,8 @@ from causal_graph_comparison import SCRATCH_DIR
 
 class PicabuResultsPaths:
     def __init__(self, exp_params, savar_params, model_name):
+
+        # expects model_name to be in format "picabu_{model.name} ex. picabu_mlp"
         
         self.model_name = model_name
         self.path_name = f"modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}"

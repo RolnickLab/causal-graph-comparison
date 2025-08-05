@@ -1,9 +1,16 @@
+from pathlib import Path
 import torch
 import numpy as np
 
 from causal_graph_comparison import OUTPUTS_DIR
 
 def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, difficulty, seed):
+
+    save_path = OUTPUTS_DIR / f"{model.name}-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
+
+    if Path(save_path).exists():
+        print(f"Rollouts already exist for {model.name}, skipping...")
+        return save_path
 
     n_samples = n_samples - 1 # for indexing starting at 0
     data_list = []
@@ -19,6 +26,9 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
         for x in data:
             data_list.append(x.squeeze().cpu().numpy())
         data = data.to(device)
+        target = target.to(device)
+        if model.name == "vae":
+            target = target[:,0]
 
         h0 = None
         c0 = None
@@ -27,9 +37,12 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
                 output, h0, c0 = model(data, h0=h0, c0=c0, return_hidden=True)
             
             elif model.name == "vae":
-                target = target[:,0]
+                print("DBG VAE target shape: ", target.shape)
+                print("DBG VAE data shape: ", data.shape)
                 output, _, _, _, _ = model.predict(data, target)
                 output = output.unsqueeze(1)
+                print("DBG VAE output shape: ", output.shape)
+                print("==========")
             else:
                 # for CNN & MLP
                 output = model(data)
@@ -64,7 +77,6 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
     print("Target array shape: ", target_array.shape) # targets = n_samples, rollouts, dimensions
     print("Output array shape: ", output_array.shape) # outputs = n_samples, rollouts, dimensions
 
-    save_path = OUTPUTS_DIR / f"{model.name}-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
     print(f"Saving rollouts to {save_path}")
     np.savez(
         save_path,
