@@ -11,7 +11,7 @@
         "future_timesteps": 1,
         "random_seed": 1,
         "gpu": true,
-        "num_workers":  0,
+        "num_workers":  2,
         "pin_memory": false,
         "verbose": true
     },

@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# TODO reduce dims to 2x2 at some point
-
 
 class CNN(nn.Module):
     def __init__(self, input_channels, output_channels, image_size):

@@ -2,9 +2,6 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-# TODO: make mlp accept (batch_size, 5, 1, 1600)
-
-
 class MLP(nn.Module):
     def __init__(self, input_size, output_size, num_layers):
         super().__init__()

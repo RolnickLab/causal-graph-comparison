@@ -1,7 +1,8 @@
 import numpy as np
 from math import sqrt
+import matplotlib.pyplot as plt
 
-def get_quadrant_centres(outputs, num_modes):
+def get_quadrant_centres(outputs:np.ndarray, num_modes:int) -> tuple[list[tuple[int, int]], list[int]]:
     """Find the centre coordinates of each quadrant in a 2D grid.
     
     Args:
@@ -40,7 +41,7 @@ def get_quadrant_centres(outputs, num_modes):
             
     return centres, linear_indices
 
-def spatial_subsample(outputs, num_modes):
+def spatial_subsample(outputs:np.ndarray, num_modes:int) -> np.ndarray:
     """Subsample the outputs to the given centres.
 
     Args:
@@ -62,14 +63,110 @@ def spatial_subsample(outputs, num_modes):
     # print(subsampled.shape)
 
     return subsampled
+
+def normal_dist(x:np.ndarray, mean:float, sd:float) -> np.ndarray:
+    prob_density = (np.pi*sd) * np.exp(-0.5*((x-mean)/sd)**2)
+    return prob_density
+
+def normalize_1d(data:np.ndarray) -> np.ndarray:
+    return (data - data.min()) / (data.max() - data.min())
+
+def create_gaussian_kernel(size:int, mean:float, sd:float) -> np.ndarray:
+    x = np.linspace(-3, 3, size)
+    normal_kernel = normal_dist(x, mean, sd)
+    normal_kernel = normalize_1d(normal_kernel)
+    return normal_kernel
+
+def add_row_to_array(array_2d: np.ndarray, new_row: np.ndarray) -> np.ndarray:
+    """Add a new row to a 2D array.
+    
+    Args:
+        array_2d (np.ndarray): Original 2D array
+        new_row (np.ndarray): 1D array to add as a new row
+        
+    Returns:
+        np.ndarray: New array with the added row
+    """
+    # Method 1: Using np.vstack (most common)
+    return np.vstack([array_2d, new_row])
+    
+    # Method 2: Using np.append
+    # return np.append(array_2d, [new_row], axis=0)
+    
+    # Method 3: Using np.concatenate
+    # return np.concatenate([array_2d, [new_row]], axis=0)
+
+def get_mean_modes(outputs:np.ndarray, num_modes:int, gaussian:bool=True) -> np.ndarray:
+    """Get the mean of each quadrant to reduce dimensionality using a gaussian kernel.
+
+    Args:
+        outputs (numpy.ndarray): The outputs to subsample, shape (num_samples, num_timesteps, num_features)
+        num_modes (int): Number of modes (subdivisions) per side
+        
+    Returns:
+        numpy.ndarray: Mean of each quadrant with shape (num_samples, num_timesteps, num_modes)
+    """
+    if len(outputs.shape) != 3:
+        raise ValueError("Expecting 3D array of size (num_samples, num_timesteps, num_features), got shape: ", outputs.shape)
+
+    quadrant_size = outputs.shape[-1] // num_modes
+
+    # divide square into num_modes quadrants
+    quadrants = np.array_split(outputs, num_modes, axis=2)
+
+    normal_kernel = create_gaussian_kernel(quadrant_size, mean = 0, sd = 1)
+    
+    if gaussian:
+        # Take mean of each quadrant along the feature dimension (axis=2)
+        mean_modes = np.array([np.average(quadrant, axis=2, weights=normal_kernel) for quadrant in quadrants])
+    else:
+        mean_modes = np.array([np.mean(quadrant, axis=2) for quadrant in quadrants])
+    
+    # Transpose to get shape (num_samples, num_timesteps, num_modes)
+    mean_modes = np.transpose(mean_modes, (1, 2, 0))
+
+    return mean_modes
  
 if __name__ == "__main__":
-    outputs = np.zeros((975, 20, 3600))
 
-    ndim = int(sqrt(outputs.shape[-1]))
-    centres, linear_indices = get_quadrant_centres(outputs, 4)
-    outputs[:,:, linear_indices] = 1
+    # ========Test spatial subsampling
+    # outputs = np.zeros((975, 20, 3600))
 
-    subsampled = spatial_subsample(outputs, 4)
-    print(subsampled.shape)
-    print(subsampled[0,2,:])
+    # ndim = int(sqrt(outputs.shape[-1]))
+    # centres, linear_indices = get_quadrant_centres(outputs, 4)
+    # outputs[:,:, linear_indices] = 1
+
+    # subsampled = spatial_subsample(outputs, 4)
+    # print(subsampled.shape)
+    # print(subsampled[0,2,:])
+
+    # ======== Test mean dim reduction
+
+    outputs = np.zeros((975, 20, 1600), dtype=int)
+    outputs[:,:,:] = np.arange(1, 1601)
+    print("outputs.shape: ", outputs.shape)
+    print("outputs[0,1,:]: ", outputs[0,1,:])
+
+    mean_modes = get_mean_modes(outputs, 4)
+    print("mean_modes.shape: ", mean_modes.shape)
+    print("mean_modes: ", mean_modes[0,1,:])
+    
+    # Test adding a row to a 2D array
+    print("\n=== Adding row to 2D array ===")
+    original_array = np.random.rand(20, 4)  # 20x4 array
+    new_row = np.array([1, 2, 3, 4])  # 1D array of size 4
+    
+    print(f"Original array shape: {original_array.shape}")
+    print(f"New row shape: {new_row.shape}")
+    
+    # Add the new row
+    expanded_array = add_row_to_array(original_array, new_row)
+    print(f"Expanded array shape: {expanded_array.shape}")
+    print(f"Last row: {expanded_array[-1]}")
+    
+    # Alternative methods:
+    # Method 2: Using np.append
+    expanded_array2 = np.append(original_array, [new_row], axis=0)
+    
+    # Method 3: Using np.concatenate
+    expanded_array3 = np.concatenate([original_array, [new_row]], axis=0)

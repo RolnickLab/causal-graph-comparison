@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 
 from tigramite.independence_tests.parcorr import ParCorr
 
-from causal_graph_comparison.dim_reduction import spatial_subsample
+from causal_graph_comparison.dim_reduction import get_mean_modes, spatial_subsample
 from causal_graph_comparison import *
 
 def correlation_matrix(subsampled, var_names):
@@ -68,7 +68,7 @@ def get_num_gt_connections(links_coeffs):
         n_links += len(link)
     return n_links
 
-def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, difficulty, seed, subsample=True, tau_min=1, significance_level=0.0001):
+def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, difficulty, seed, subsample, tau_min=1, significance_level=0.0001):
     """
     Run causal discovery on the outputs, targets, and inputs.
     Accept either array or path to array.
@@ -84,8 +84,14 @@ def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, d
         timeseries = np.load(timeseries)['outputs']
 
     # subsample outputs
-    if subsample:
-        timeseries = spatial_subsample(timeseries, 4)
+    if subsample == "spatial":
+        # Spatial subsampling
+        timeseries = spatial_subsample(timeseries, num_modes)
+    elif subsample == "mean":
+        # Mean dim reduction
+        timeseries = get_mean_modes(timeseries, num_modes)
+    else:
+        raise ValueError(f"Invalid subsampling method: {subsample}, try 'spatial' or 'mean'")
 
     var_names = [f"mode_{i}" for i in range(num_modes)]
     dataframe = pp.DataFrame(timeseries, analysis_mode = 'multiple', var_names=var_names)

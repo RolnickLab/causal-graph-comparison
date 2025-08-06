@@ -9,11 +9,6 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from torchvision import datasets, transforms
 
-# TODO: make lstm accept (batch_size, 5, 1, 1600)
-# TODO use best lstm --> use best model for all of them
-# find way not to overfit
-# decrease hidden size --> 4?
-
 
 class LSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers):

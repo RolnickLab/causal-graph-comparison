@@ -26,10 +26,10 @@ args.add_argument(
     "--difficulty",
     type=str,
     choices=["easy", "med_easy", "med_hard", "hard"],
-    help="Difficulty level: easy (e), medium-easy (me), medium-hard (mh), hard (h)",
+    help="Difficulty level: easy, med_easy, med_hard, hard",
 )
 args.add_argument(
-    "--num_modes", type=int, choices=[4, 25, 100], help="Number of modes: 4, 25, 100"
+    "--num_modes", type=int, choices=[4, 16, 64], help="Number of modes: 4, 25, 100"
 )
 args.add_argument("--seed", type=int, default=1, choices=[1, 42, 99])
 args.add_argument(
@@ -81,6 +81,24 @@ experiment_params.lat = savar_params.comp_size * savar_params.n_per_col
 experiment_params.random_seed = args.seed
 experiment_params.d_x = experiment_params.lon * experiment_params.lat
 
+# set variable sparsity threshold based on difficulty
+N = args.num_modes
+tau = experiment_params.tau
+
+if N == 4:
+    denom = 1
+else:
+    denom = 2
+
+sparsity_thresholds = {
+    "easy": N / (N**2 * tau), # for N = 4, tau = 5, prob = 4 / 80 = 0.05
+    "med_easy": 2 * N / (N**2 * tau), # for N = 4, tau = 5, prob = 8 / 80 = 0.1
+    "med_hard": 3 * N / (N**2 * tau), # for N = 4, tau = 5, prob = 12 / 80 = 0.15
+    "hard": (N + N*(N-1)/denom) / (N**2 * tau) # for N = 4, tau = 5, prob = 10 / 80 = 0.125
+}
+
+optim_params.sparsity_upper_threshold = sparsity_thresholds[args.difficulty]
+
 # set device
 device = torch.device(
     "cuda" if (torch.cuda.is_available() and experiment_params.gpu) else "cpu"
@@ -88,7 +106,7 @@ device = torch.device(
 
 # generate savar data
 datamodule = generate_savar_data(
-    experiment_params, data_params, savar_params, train_params, reload_data=True
+    experiment_params, data_params, savar_params, train_params, reload_data=False
 )
 
 # print datamodule 
@@ -363,7 +381,7 @@ causal_discovery_params = {
 }
 
 ## 1.2) run causal discovery
-mlp_graph, mlp_val_matrix, mlp_p_matrix, mlp_corr_matrix, mlp_var_names = causal_discovery(timeseries=mlp_rollouts_path, model_name=mlp_model.name, **causal_discovery_params)
+mlp_graph, mlp_val_matrix, mlp_p_matrix, mlp_corr_matrix, mlp_var_names = causal_discovery(timeseries=mlp_rollouts_path, model_name=mlp_model.name, subsample="mean", **causal_discovery_params)
 
 # 2) Run causal discovery on lstm 
 ## 2.1) run inference --> saves scratch/cgc/outputs/lstm-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
@@ -371,7 +389,7 @@ print(f"Running inference on lstm: {n_samples} samples, {rollouts} timesteps..."
 lstm_rollouts_path = run_rollouts(lstm_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
 ## 2.2) run causal discovery
-lstm_graph, lstm_val_matrix, lstm_p_matrix, lstm_corr_matrix, lstm_var_names = causal_discovery(timeseries=lstm_rollouts_path, model_name=lstm_model.name, **causal_discovery_params)
+lstm_graph, lstm_val_matrix, lstm_p_matrix, lstm_corr_matrix, lstm_var_names = causal_discovery(timeseries=lstm_rollouts_path, model_name=lstm_model.name, subsample="mean", **causal_discovery_params)
 
 # 3) Run causal discovery on cnn 
 ## 3.1) run inference --> saves scratch/cgc/outputs/cnn-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
@@ -379,7 +397,7 @@ print(f"Running inference on cnn: {n_samples} samples, {rollouts} timesteps...")
 cnn_rollouts_path = run_rollouts(cnn_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
 ## 3.2) run causal discovery
-cnn_graph, cnn_val_matrix, cnn_p_matrix, cnn_corr_matrix, cnn_var_names = causal_discovery(timeseries=cnn_rollouts_path, model_name=cnn_model.name, **causal_discovery_params)
+cnn_graph, cnn_val_matrix, cnn_p_matrix, cnn_corr_matrix, cnn_var_names = causal_discovery(timeseries=cnn_rollouts_path, model_name=cnn_model.name, subsample="mean", **causal_discovery_params)
 
 # 4) Run causal discovery on vae 
 ## 4.1) run inference --> saves scratch/cgc/outputs/vae-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
@@ -387,13 +405,29 @@ print(f"Running inference on vae: {n_samples} samples, {rollouts} timesteps...")
 vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
 ## 4.2) run causal discovery
-vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(timeseries=vae_rollouts_path, model_name=vae_model.name, **causal_discovery_params)
+vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(timeseries=vae_rollouts_path, model_name=vae_model.name, subsample="mean", **causal_discovery_params)
 
 # 5) Run causal discovery on savar ground truth
 ## 5.1) get targets saved from rollout (1000 samples, 20 timesteps)
 rollout_targets = np.load(mlp_rollouts_path)['targets']
 ## 5.2) run causal discovery
-savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(timeseries=rollout_targets, model_name="savar", **causal_discovery_params)
+savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(timeseries=rollout_targets, model_name="savar", subsample="mean", **causal_discovery_params)
+
+# ===== Run rollouts with 1 step for each model <-- for rmse, statistical metrics
+rollouts = 1
+# 1) mlp
+mlp_rollouts_path = run_rollouts(mlp_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+
+# 2) lstm
+lstm_rollouts_path = run_rollouts(lstm_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+
+# 3) cnn
+cnn_rollouts_path = run_rollouts(cnn_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+
+# 4) vae
+vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+
+
 
 # --- PART 2: EVALUATION
 
@@ -467,3 +501,10 @@ vae_flat_cd_graph = binarize_array(vae_flat_cd_graph)
 # TODO: use graph-eval.py 
 
 # 3) Do qualitative analysis on graphs
+
+
+# --------- BASH
+
+# 12 -16 cpus for 1 gpu a100
+# 120 - 256 gb ram
+# crank up num workers <-- 

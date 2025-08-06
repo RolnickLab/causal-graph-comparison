@@ -1,4 +1,3 @@
-import shutil
 from causal_graph_comparison.picabu import train_picabu
 from causal_graph_comparison import MODELS_DIR
 
