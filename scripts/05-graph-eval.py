@@ -11,6 +11,16 @@ from causal_graph_comparison.utils import binarize_array
 from causal_graph_comparison import OUTPUTS_DIR
 import numpy as np
 
+# --------- PART 0: GRAPH EVALUATION ---------
+
+# 1) Create permuted dataset of graphs
+# TODO: use 01-dataset-builder.py to create permuted dataset of graphs
+
+# 2) Apply comparison metrics 
+# TODO: use graph-eval.py 
+
+# 3) Do qualitative analysis on graphs
+
 # --- 1. Build ground truth graph with graph builder ---
 
 data_path = causal_graph_comparison.DATA_DIR

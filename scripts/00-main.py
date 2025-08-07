@@ -131,7 +131,24 @@ test_loader = torch.utils.data.DataLoader(
     test_dataset, batch_size=data_params.eval_batch_size, shuffle=False
 )
 
-# ------ Train picabu on savar for "ground truth" causal graph ------
+# ------ load params for causal discovery ------
+
+# load inference params from config file
+n_samples = trained_model_params["common"]["test_params"]["num_samples"]
+rollouts = trained_model_params["common"]["test_params"]["rollout_timesteps"]
+inference_batch_size = trained_model_params["common"]["test_params"]["inference_batch_size"]
+
+# create inference loader from test dataset with batch size of 1000 (i.e. pass all samples at once)
+inference_loader = torch.utils.data.DataLoader(
+    test_dataset, batch_size=inference_batch_size, shuffle=False
+)
+
+# ------ params for autoregressive rollouts ------
+single_rollout = 1
+
+
+# ====== PICABU ======
+# 0.1)Train picabu on savar for "ground truth" causal graph ------
 # saves results to scratch/results/SAVAR_DATA_TEST/picabu-modes_{modes}-diff_{difficulty}-seed_{seed}/ (graph)
 
 print("=== training picabu on savar")
@@ -149,9 +166,34 @@ train_picabu(
 )
 wandb.finish()
 
-# ------ Train emulators on savar ------
+# 0.2) Run causal discovery on savar ground truth
+## 0.2a) get targets saved from rollout (1000 samples, 20 timesteps)
+rollout_targets = np.load(mlp_rollouts_path)['targets']
+## 0.2b) run causal discovery
+savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(timeseries=rollout_targets, model_name="savar", subsample="mean", **causal_discovery_params)
 
-# 1) Train vae --> saves scratch/cgc/models/vae-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
+# 0.3) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
+
+picabu_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu")
+
+# 0.4) Flatten temporal adjacency graphs: causal representation learning
+gt_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=picabu_permuted_crl_graph)
+
+# 0.5) Flatten temporal adjacency graphs: causal discovery
+gt_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=savar_val_matrix)
+
+# 0.8) Binarize causal discovery & causal representation learning graphs
+gt_flat_cd_graph = binarize_array(gt_flat_cd_graph)
+np.savez(f"{OUTPUTS_DIR}/gt_flat_binary_cd_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=gt_flat_cd_graph)
+
+gt_flat_crl_graph = binarize_array(gt_flat_crl_graph)
+np.savez(f"{OUTPUTS_DIR}/gt_flat_binary_crl_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=gt_flat_crl_graph)
+
+
+
+# ====== VAE ======
+
+# 1.1) Train vae --> saves scratch/cgc/models/vae-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
 print("=== training picabu as vae on savar")
 wandb.init(project="climatem", config={"model": "vae", **wandb_dict})
 vae_path = train_vae(
@@ -168,134 +210,7 @@ vae_path = train_vae(
 )
 wandb.finish()
 
-# 2) Train mlp --> saves scratch/cgc/models/mlp-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
-mlp_input_size = experiment_params.d_x * experiment_params.tau
-mlp_output_size = experiment_params.d_x * experiment_params.future_timesteps
-mlp_layers = trained_model_params["mlp"]["model_params"]["num_layers"]
-
-mlp = MLP(
-    input_size=mlp_input_size, output_size=mlp_output_size, num_layers=mlp_layers
-).to(device)
-print("=== training mlp on savar")
-wandb.init(project="climatem", config={"model": "mlp", **wandb_dict})
-mlp_path = run_trainer(
-    datamodule,
-    mlp,
-    trained_model_params,
-    args.dataset_type,
-    args.num_modes,
-    args.difficulty,
-    args.seed,
-    device,
-)
-wandb.finish()
-
-# 3) Train lstm --> saves scratch/cgc/models/lstm-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
-input_size = experiment_params.d_x
-num_layers = trained_model_params["lstm"]["model_params"]["num_layers"]
-
-lstm = LSTM(
-    input_size=input_size, hidden_size=int(input_size / 2), num_layers=num_layers
-).to(device)
-print("=== training lstm on savar")
-wandb.init(project="climatem", config={"model": "lstm", **wandb_dict})
-lstm_path = run_trainer(
-    datamodule,
-    lstm,
-    trained_model_params,
-    args.dataset_type,
-    args.num_modes,
-    args.difficulty,
-    args.seed,
-    device,
-)
-wandb.finish()
-
-# 4) Train cnn --> saves scratch/cgc/models/cnn-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
-cnn_input_channels = experiment_params.tau
-cnn_output_channels = experiment_params.future_timesteps
-cnn_image_size = experiment_params.lon
-
-cnn = CNN(
-    input_channels=cnn_input_channels,
-    output_channels=cnn_output_channels,
-    image_size=cnn_image_size,
-).to(device)
-print("=== training cnn on savar")
-wandb.init(project="climatem", config={"model": "cnn", **wandb_dict})
-cnn_path = run_trainer(
-    datamodule,
-    cnn,
-    trained_model_params,
-    args.dataset_type,
-    args.num_modes,
-    args.difficulty,
-    args.seed,
-    device,
-)
-wandb.finish()
-
-# ------ Run causal representation learning (picabu) on emulators to learn their causal graphs ------
-
-# 1) Train picabu on mlp --> saves scratch/results/SAVAR_DATA_TEST/picabu-mlp-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
-
-mlp_model = torch.load(mlp_path, map_location=device, weights_only=False)
-
-wandb.init(project="climatem", config={"model": "picabu-mlp", **wandb_dict})
-train_picabu(
-    datamodule,
-    experiment_params,
-    data_params,
-    gt_params,
-    train_params,
-    picabu_params,
-    optim_params,
-    plot_params,
-    savar_params,
-    trained_model=mlp_model,
-    trained_model_params=trained_model_params,
-)
-wandb.finish()
-
-# 2) Train picabu on lstm --> saves scratch/results/SAVAR_DATA_TEST/picabu-lstm-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
-lstm_model = torch.load(lstm_path, map_location=device, weights_only=False)
-
-wandb.init(project="climatem", config={"model": "picabu-lstm", **wandb_dict})
-train_picabu(
-    datamodule,
-    experiment_params,
-    data_params,
-    gt_params,
-    train_params,
-    picabu_params,
-    optim_params,
-    plot_params,
-    savar_params,
-    trained_model=lstm_model,
-    trained_model_params=trained_model_params,
-)
-wandb.finish()
-
-# 3) Train picabu on cnn --> saves scratch/results/SAVAR_DATA_TEST/picabu-cnn-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
-cnn_model = torch.load(cnn_path, map_location=device, weights_only=False)
-
-wandb.init(project="climatem", config={"model": "picabu-cnn", **wandb_dict})
-train_picabu(
-    datamodule,
-    experiment_params,
-    data_params,
-    gt_params,
-    train_params,
-    picabu_params,
-    optim_params,
-    plot_params,
-    savar_params,
-    trained_model=cnn_model,
-    trained_model_params=trained_model_params,
-)
-wandb.finish()
-
-# 4) Train picabu on vae --> saves scratch/results/SAVAR_DATA_TEST/picabu-vae-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
+# 1.2) Train picabu on vae --> saves scratch/results/SAVAR_DATA_TEST/picabu-vae-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
 vae_state_dict = torch.load(vae_path, map_location=device)
 
 # Since vae is just picabu with constraints turned off, we use picabu training pipeline
@@ -353,21 +268,81 @@ train_picabu(
 )
 wandb.finish()
 
-# ------ Run causal discovery on emulators to learn their causal graphs ------
+# 1.3) Run causal discovery on vae 
+## 1.3a) run inference --> saves scratch/cgc/outputs/vae-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+print(f"Running inference on vae: {n_samples} samples, {rollouts} timesteps...")
+vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
-# load inference params from config file
-n_samples = trained_model_params["common"]["test_params"]["num_samples"]
-rollouts = trained_model_params["common"]["test_params"]["rollout_timesteps"]
-inference_batch_size = trained_model_params["common"]["test_params"]["inference_batch_size"]
+## 1.3b) run causal discovery
+vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(timeseries=vae_rollouts_path, model_name=vae_model.name, subsample="mean", **causal_discovery_params)
 
-# create inference loader from test dataset with batch size of 1000 (i.e. pass all samples at once)
-inference_loader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=inference_batch_size, shuffle=False
+# ===== Run rollouts with 1 step for each model <-- for rmse, statistical metrics
+# 1.4) vae
+vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, single_rollout, args.num_modes, args.difficulty, args.seed)
+
+# 1.5) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
+vae_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
+
+# 1.6) Flatten temporal adjacency graphs: causal representation learning
+vae_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=vae_permuted_crl_graph)
+
+# 1.7) Flatten temporal adjacency graphs: causal discovery
+vae_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=vae_val_matrix)
+
+# 1.8) Binarize causal discovery & causal representation learning graphs
+vae_flat_cd_graph = binarize_array(vae_flat_cd_graph)
+np.savez(f"{OUTPUTS_DIR}/vae_flat_binary_cd_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=vae_flat_cd_graph)
+
+vae_flat_crl_graph = binarize_array(vae_flat_crl_graph)
+np.savez(f"{OUTPUTS_DIR}/vae_flat_binary_crl_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=vae_flat_crl_graph)
+
+# ====== MLP ======
+
+# 2.1) Train picabu on mlp --> saves scratch/results/SAVAR_DATA_TEST/picabu-mlp-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
+
+mlp_model = torch.load(mlp_path, map_location=device, weights_only=False)
+
+wandb.init(project="climatem", config={"model": "picabu-mlp", **wandb_dict})
+train_picabu(
+    datamodule,
+    experiment_params,
+    data_params,
+    gt_params,
+    train_params,
+    picabu_params,
+    optim_params,
+    plot_params,
+    savar_params,
+    trained_model=mlp_model,
+    trained_model_params=trained_model_params,
 )
+wandb.finish()
 
-# 1) run causal discovery on mlp --> saves scratch/cgc/outputs/mlp-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+# 2.2) Train mlp --> saves scratch/cgc/models/mlp-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
+mlp_input_size = experiment_params.d_x * experiment_params.tau
+mlp_output_size = experiment_params.d_x * experiment_params.future_timesteps
+mlp_layers = trained_model_params["mlp"]["model_params"]["num_layers"]
 
-## 1.1) run inference - create 1000 samples 20 timesteps
+mlp = MLP(
+    input_size=mlp_input_size, output_size=mlp_output_size, num_layers=mlp_layers
+).to(device)
+print("=== training mlp on savar")
+wandb.init(project="climatem", config={"model": "mlp", **wandb_dict})
+mlp_path = run_trainer(
+    datamodule,
+    mlp,
+    trained_model_params,
+    args.dataset_type,
+    args.num_modes,
+    args.difficulty,
+    args.seed,
+    device,
+)
+wandb.finish()
+
+# 2.3) run causal discovery on mlp --> saves scratch/cgc/outputs/mlp-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+
+## 2.3a) run inference - create 1000 samples 20 timesteps
 print(f"Running inference on mlp: {n_samples} samples, {rollouts} timesteps...")
 
 mlp_rollouts_path = run_rollouts(mlp_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
@@ -380,127 +355,173 @@ causal_discovery_params = {
     "seed": args.seed,
 }
 
-## 1.2) run causal discovery
+## 2.3b) run causal discovery
 mlp_graph, mlp_val_matrix, mlp_p_matrix, mlp_corr_matrix, mlp_var_names = causal_discovery(timeseries=mlp_rollouts_path, model_name=mlp_model.name, subsample="mean", **causal_discovery_params)
 
-# 2) Run causal discovery on lstm 
-## 2.1) run inference --> saves scratch/cgc/outputs/lstm-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+# ===== Run rollouts with 1 step for each model <-- for rmse, statistical metrics
+# 2.4) mlp
+mlp_rollouts_path = run_rollouts(mlp_model, device, inference_loader, n_samples, single_rollout, args.num_modes, args.difficulty, args.seed)
+
+# 2.5) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
+mlp_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_mlp")
+
+# 2.6) Flatten temporal adjacency graphs: causal representation learning
+mlp_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=mlp_permuted_crl_graph)
+
+# 2.7) Flatten temporal adjacency graphs: causal discovery
+mlp_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=mlp_val_matrix)
+
+# 2.8) Binarize causal discovery & causal representation learning graphs
+mlp_flat_crl_graph = binarize_array(mlp_flat_crl_graph)
+np.savez(f"{OUTPUTS_DIR}/mlp_flat_binary_crl_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=mlp_flat_crl_graph)
+
+mlp_flat_cd_graph = binarize_array(mlp_flat_cd_graph)
+np.savez(f"{OUTPUTS_DIR}/mlp_flat_binary_cd_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=mlp_flat_cd_graph)
+
+
+# ====== LSTM ======
+
+# 3.1) Train lstm --> saves scratch/cgc/models/lstm-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
+input_size = experiment_params.d_x
+num_layers = trained_model_params["lstm"]["model_params"]["num_layers"]
+
+lstm = LSTM(
+    input_size=input_size, hidden_size=int(input_size / 2), num_layers=num_layers
+).to(device)
+print("=== training lstm on savar")
+wandb.init(project="climatem", config={"model": "lstm", **wandb_dict})
+lstm_path = run_trainer(
+    datamodule,
+    lstm,
+    trained_model_params,
+    args.dataset_type,
+    args.num_modes,
+    args.difficulty,
+    args.seed,
+    device,
+)
+wandb.finish()
+
+# 3.2) Train picabu on lstm --> saves scratch/results/SAVAR_DATA_TEST/picabu-lstm-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
+lstm_model = torch.load(lstm_path, map_location=device, weights_only=False)
+
+wandb.init(project="climatem", config={"model": "picabu-lstm", **wandb_dict})
+train_picabu(
+    datamodule,
+    experiment_params,
+    data_params,
+    gt_params,
+    train_params,
+    picabu_params,
+    optim_params,
+    plot_params,
+    savar_params,
+    trained_model=lstm_model,
+    trained_model_params=trained_model_params,
+)
+wandb.finish()
+
+# 3.3) Run causal discovery on lstm 
+## 3.3a) run inference --> saves scratch/cgc/outputs/lstm-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
 print(f"Running inference on lstm: {n_samples} samples, {rollouts} timesteps...")
 lstm_rollouts_path = run_rollouts(lstm_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
-## 2.2) run causal discovery
+## 3.3b) run causal discovery
 lstm_graph, lstm_val_matrix, lstm_p_matrix, lstm_corr_matrix, lstm_var_names = causal_discovery(timeseries=lstm_rollouts_path, model_name=lstm_model.name, subsample="mean", **causal_discovery_params)
 
-# 3) Run causal discovery on cnn 
-## 3.1) run inference --> saves scratch/cgc/outputs/cnn-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
+# ===== Run rollouts with 1 step for each model <-- for rmse, statistical metrics
+# 3.4) lstm
+lstm_rollouts_path = run_rollouts(lstm_model, device, inference_loader, n_samples, single_rollout, args.num_modes, args.difficulty, args.seed)
+
+# 3.5) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
+lstm_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_lstm")
+
+# 3.6) Flatten temporal adjacency graphs: causal representation learning
+lstm_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=lstm_permuted_crl_graph)
+
+# 3.7) Flatten temporal adjacency graphs: causal discovery
+lstm_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=lstm_val_matrix)
+
+# 3.8) Binarize causal discovery & causal representation learning graphs
+lstm_flat_crl_graph = binarize_array(lstm_flat_crl_graph)
+np.savez(f"{OUTPUTS_DIR}/lstm_flat_binary_crl_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=lstm_flat_crl_graph)
+
+lstm_flat_cd_graph = binarize_array(lstm_flat_cd_graph)
+np.savez(f"{OUTPUTS_DIR}/lstm_flat_binary_cd_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=lstm_flat_cd_graph)
+
+
+# ====== CNN ======
+
+# 4.1) Train cnn --> saves scratch/cgc/models/cnn-modes_{modes}-diff_{difficulty}-seed_{seed}.pth
+cnn_input_channels = experiment_params.tau
+cnn_output_channels = experiment_params.future_timesteps
+cnn_image_size = experiment_params.lon
+
+cnn = CNN(
+    input_channels=cnn_input_channels,
+    output_channels=cnn_output_channels,
+    image_size=cnn_image_size,
+).to(device)
+print("=== training cnn on savar")
+wandb.init(project="climatem", config={"model": "cnn", **wandb_dict})
+cnn_path = run_trainer(
+    datamodule,
+    cnn,
+    trained_model_params,
+    args.dataset_type,
+    args.num_modes,
+    args.difficulty,
+    args.seed,
+    device,
+)
+wandb.finish()
+
+# 4.2) Train picabu on cnn --> saves scratch/results/SAVAR_DATA_TEST/picabu-cnn-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
+cnn_model = torch.load(cnn_path, map_location=device, weights_only=False)
+
+wandb.init(project="climatem", config={"model": "picabu-cnn", **wandb_dict})
+train_picabu(
+    datamodule,
+    experiment_params,
+    data_params,
+    gt_params,
+    train_params,
+    picabu_params,
+    optim_params,
+    plot_params,
+    savar_params,
+    trained_model=cnn_model,
+    trained_model_params=trained_model_params,
+)
+wandb.finish()
+
+# 4.3) Run causal discovery on cnn 
+## 4.3a) run inference --> saves scratch/cgc/outputs/cnn-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
 print(f"Running inference on cnn: {n_samples} samples, {rollouts} timesteps...")
 cnn_rollouts_path = run_rollouts(cnn_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
 
-## 3.2) run causal discovery
+## 4.3b) run causal discovery
 cnn_graph, cnn_val_matrix, cnn_p_matrix, cnn_corr_matrix, cnn_var_names = causal_discovery(timeseries=cnn_rollouts_path, model_name=cnn_model.name, subsample="mean", **causal_discovery_params)
 
-# 4) Run causal discovery on vae 
-## 4.1) run inference --> saves scratch/cgc/outputs/vae-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
-print(f"Running inference on vae: {n_samples} samples, {rollouts} timesteps...")
-vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
-
-## 4.2) run causal discovery
-vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(timeseries=vae_rollouts_path, model_name=vae_model.name, subsample="mean", **causal_discovery_params)
-
-# 5) Run causal discovery on savar ground truth
-## 5.1) get targets saved from rollout (1000 samples, 20 timesteps)
-rollout_targets = np.load(mlp_rollouts_path)['targets']
-## 5.2) run causal discovery
-savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(timeseries=rollout_targets, model_name="savar", subsample="mean", **causal_discovery_params)
-
 # ===== Run rollouts with 1 step for each model <-- for rmse, statistical metrics
-rollouts = 1
-# 1) mlp
-mlp_rollouts_path = run_rollouts(mlp_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+# 4.4) cnn
+cnn_rollouts_path = run_rollouts(cnn_model, device, inference_loader, n_samples, single_rollout, args.num_modes, args.difficulty, args.seed)
 
-# 2) lstm
-lstm_rollouts_path = run_rollouts(lstm_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
-
-# 3) cnn
-cnn_rollouts_path = run_rollouts(cnn_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
-
-# 4) vae
-vae_rollouts_path = run_rollouts(vae_model, device, inference_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
-
-
-
-# --- PART 2: EVALUATION
-
-# 1) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
-
-picabu_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu")
-mlp_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_mlp")
-lstm_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_lstm")
+# 4.5) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
 cnn_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_cnn")
-vae_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_vae")
 
-# 2a) Flatten temporal adjacency graphs: causal representation learning
-gt_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=picabu_permuted_crl_graph)
-mlp_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=mlp_permuted_crl_graph)
-lstm_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=lstm_permuted_crl_graph)
+# 4.6) Flatten temporal adjacency graphs: causal representation learning
 cnn_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=cnn_permuted_crl_graph)
-vae_flat_crl_graph = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="crl", graph=vae_permuted_crl_graph)
 
-# 2b) Flatten temporal adjacency graphs: causal discovery
-gt_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=savar_val_matrix)
-mlp_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=mlp_val_matrix)
-lstm_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=lstm_val_matrix)
+# 4.7) Flatten temporal adjacency graphs: causal discovery
 cnn_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=cnn_val_matrix)
-vae_flat_cd_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", graph=vae_val_matrix)
 
-# Binarize causal discovery graphs
-gt_flat_cd_graph = binarize_array(gt_flat_cd_graph)
-mlp_flat_cd_graph = binarize_array(mlp_flat_cd_graph)
-lstm_flat_cd_graph = binarize_array(lstm_flat_cd_graph)
+# 4.8) Binarize causal discovery & causal representation learning graphs
+cnn_flat_crl_graph = binarize_array(cnn_flat_crl_graph)
+np.savez(f"{OUTPUTS_DIR}/cnn_flat_binary_crl_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=cnn_flat_crl_graph)
+
 cnn_flat_cd_graph = binarize_array(cnn_flat_cd_graph)
-vae_flat_cd_graph = binarize_array(vae_flat_cd_graph)
-
-# 3) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
-# TODO: add scripts/11-graph-eval_mlp.py to pipeline
-# TODO: implement Distance Average Causal Effect: https://www.nature.com/articles/s41467-024-50813-z
-
-# 4) Apply causal & structural comparison metrics to lstm (picabu, causal_discovery)
-
-# 5) Apply causal & structural comparison metrics to cnn (picabu, causal_discovery)
-
-# 6) Apply causal & structural comparison metrics to vae (picabu, causal_discovery)
-
-# 7) Run RMSE, statistical metrics on all trained models
-
-# 8) Apply power spectral density script from climatem module to: inference from models, targets 
-
-# 9) Plotting...
-    # explore-mlp-output.ipynb
-    # causal-discovery-mlp.ipynb
-    # causal-discovery-groundtruth.ipynb
-    # causal-discovery-mlp-1000samples.ipynb
-
-# --- PART 3: INTERVENTIONS
-
-# 1) Perturb data
-
-# 2) Run picabu on all trained models with perturbed data
-
-# 3) Run inference on all trained models w/ perturbed data
-
-# 4) Get "gt" target from savar model for perturbed data
-
-# 5) Apply RMSE on inference results
-
-# --------- PART 0: GRAPH EVALUATION ---------
-
-# 1) Create permuted dataset of graphs
-# TODO: use 01-dataset-builder.py to create permuted dataset of graphs
-
-# 2) Apply comparison metrics 
-# TODO: use graph-eval.py 
-
-# 3) Do qualitative analysis on graphs
+np.savez(f"{OUTPUTS_DIR}/cnn_flat_binary_cd_graph_modes_{args.num_modes}-diff_{args.difficulty}-seed_{args.seed}.npz", array=cnn_flat_cd_graph)
 
 
 # --------- BASH

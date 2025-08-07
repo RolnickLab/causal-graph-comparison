@@ -16,7 +16,9 @@ def binarize_array(array: np.ndarray) -> np.ndarray:
     Returns:
         The binarized array.
     """
+
     return (array > 0).astype(np.int8)
+
 
 def permute_graph(datamodule, exp_params, savar_params, model_name):
 
@@ -178,7 +180,7 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
         save_name = f"{causal_method_str}flattened_graph-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
     else:
         save_name = f"{causal_method_str}flattened_graph.npz"
-        
+
     save_path = OUTPUTS_DIR / Path(save_name)
 
     np.savez(save_path, val_matrix=flattened_graph)
