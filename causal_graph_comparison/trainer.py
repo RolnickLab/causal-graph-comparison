@@ -94,7 +94,7 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
     return test_loss
 
 
-def run_trainer(datamodule, model, params, dataset_type, modes, difficulty, seed, device):
+def run_trainer(model, datamodule, params, modes, difficulty, seed, device):
     save_name = f"{model.name}-modes_{modes}-diff_{difficulty}-seed_{seed}"
 
     # check if model already exists

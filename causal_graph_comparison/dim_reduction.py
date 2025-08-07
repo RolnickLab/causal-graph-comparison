@@ -77,25 +77,6 @@ def create_gaussian_kernel(size:int, mean:float, sd:float) -> np.ndarray:
     normal_kernel = normalize_1d(normal_kernel)
     return normal_kernel
 
-def add_row_to_array(array_2d: np.ndarray, new_row: np.ndarray) -> np.ndarray:
-    """Add a new row to a 2D array.
-    
-    Args:
-        array_2d (np.ndarray): Original 2D array
-        new_row (np.ndarray): 1D array to add as a new row
-        
-    Returns:
-        np.ndarray: New array with the added row
-    """
-    # Method 1: Using np.vstack (most common)
-    return np.vstack([array_2d, new_row])
-    
-    # Method 2: Using np.append
-    # return np.append(array_2d, [new_row], axis=0)
-    
-    # Method 3: Using np.concatenate
-    # return np.concatenate([array_2d, [new_row]], axis=0)
-
 def get_mean_modes(outputs:np.ndarray, num_modes:int, gaussian:bool=True) -> np.ndarray:
     """Get the mean of each quadrant to reduce dimensionality using a gaussian kernel.
 
@@ -150,23 +131,4 @@ if __name__ == "__main__":
     mean_modes = get_mean_modes(outputs, 4)
     print("mean_modes.shape: ", mean_modes.shape)
     print("mean_modes: ", mean_modes[0,1,:])
-    
-    # Test adding a row to a 2D array
-    print("\n=== Adding row to 2D array ===")
-    original_array = np.random.rand(20, 4)  # 20x4 array
-    new_row = np.array([1, 2, 3, 4])  # 1D array of size 4
-    
-    print(f"Original array shape: {original_array.shape}")
-    print(f"New row shape: {new_row.shape}")
-    
-    # Add the new row
-    expanded_array = add_row_to_array(original_array, new_row)
-    print(f"Expanded array shape: {expanded_array.shape}")
-    print(f"Last row: {expanded_array[-1]}")
-    
-    # Alternative methods:
-    # Method 2: Using np.append
-    expanded_array2 = np.append(original_array, [new_row], axis=0)
-    
-    # Method 3: Using np.concatenate
-    expanded_array3 = np.concatenate([original_array, [new_row]], axis=0)
+ 

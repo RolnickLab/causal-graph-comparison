@@ -14,7 +14,6 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
 
     n_samples = n_samples - 1 # for indexing starting at 0
     data_list = []
-    target_list = []
     output_list = []
 
     model.eval()
@@ -55,6 +54,7 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
             # replace last timestep with output
             data[:, -1, :, :] = output[:,0,:,:]
 
+        # get targets
         target_list = []
         for i in range(rollouts):
             target_list.append(target[i : n_samples - rollouts + i].squeeze().cpu().numpy())
@@ -83,5 +83,37 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
         inputs=data_array,
         targets=target_array,
         outputs=output_array,
+    )
+    return save_path
+
+def get_targets(test_loader, n_samples, rollouts, n_modes, difficulty, seed):
+
+    save_path = OUTPUTS_DIR / f"targets-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
+
+    if Path(save_path).exists():
+        print(f"Targets already exist, skipping...")
+        return save_path
+
+    n_samples = n_samples - 1 # for indexing starting at 0
+    target_list = []
+
+        # get first batch
+    _, target = next(iter(test_loader))
+
+    for i in range(rollouts):
+        target_list.append(target[i : n_samples - rollouts + i].squeeze().cpu().numpy())
+    
+    # Convert lists to array
+    target_array = np.array(target_list)
+
+    # switch order of dimensions to match n_samples, rollouts, dimensions
+    target_array = np.moveaxis(target_array, 1, 0)
+
+    print("Target array shape: ", target_array.shape) # targets = n_samples, rollouts, dimensions
+
+    print(f"Saving rollouts to {save_path}")
+    np.savez(
+        save_path,
+        targets=target_array
     )
     return save_path

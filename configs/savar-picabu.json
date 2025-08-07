@@ -55,7 +55,7 @@
         "lr": 0.001,
         "lr_scheduler_epochs": [10000, 20000],
         "lr_scheduler_gamma": 1,    
-        "max_iteration": 20, 
+        "max_iteration": 200000, 
         "patience": 5000,
         "patience_post_thresh": 50,
         "valid_freq": 5
@@ -129,7 +129,7 @@
     "plot_params": {
         "plot_freq": 5000,
         "plot_through_time": true,
-        "print_freq": 10
+        "print_freq": 1000
     },
     "savar_params": {
         "time_len": 10000,
