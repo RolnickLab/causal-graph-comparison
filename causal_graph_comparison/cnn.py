@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class CNN(nn.Module):
-    def __init__(self, input_channels, output_channels, image_size):
+    def __init__(self, input_channels, output_channels, image_size, channels, kernels, fc_layers):
         """
         CNN for next-step prediction of 40x40 images.
 
@@ -12,6 +12,9 @@ class CNN(nn.Module):
             input_channels: Number of input timesteps (default: 5)
             output_channels: Number of output timesteps (default: 1)
             image_size: Dimension of square input images (default: 20)
+            channels: list of size of channels for each convolutional layer
+            kernel_sizes: list of kernel sizes for each convolutional layer
+            fc_hidden: list of size of hidden layers for each fully connected layer
         """
         super(CNN, self).__init__()
         self.input_channels = input_channels
@@ -19,27 +22,31 @@ class CNN(nn.Module):
         self.image_size = image_size
         self.name = "cnn"
 
+        self.channels = channels
+        self.kernels = kernels
+        self.fc_layers = fc_layers
+    
         # Convolutional layers
-        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, padding=1)  # kernel size should be larger
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)  # kernel size should be larger
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=5, padding=2)
+        self.conv1 = nn.Conv2d(input_channels, channels[0], kernel_size=kernels[0], padding=1) 
+        self.conv2 = nn.Conv2d(channels[0], channels[1], kernel_size=kernels[1], padding=1)  
+        self.conv3 = nn.Conv2d(channels[1], channels[2], kernel_size=kernels[2], padding=2)
 
         # Pooling layers
         self.pool = nn.MaxPool2d(2, 2)
 
         # Dropout layers
-        self.dropout1 = nn.Dropout(0.25)
-        self.dropout2 = nn.Dropout(0.5)
+        self.dropout1 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
 
         # Calculate the size after convolutions and pooling
-        # After 2 pooling operations: 20 -> 10 -> 5
+        # After 2 pooling operations: 20 -> 10 -> 5 / 40 -> 20 -> 10 / 80 -> 40 -> 20
         conv_output_size = image_size // 4  # 20 / 4 = 5
-        conv_output_features = 128 * conv_output_size * conv_output_size
+        conv_output_features = channels[-1] * conv_output_size * conv_output_size
 
         # Fully connected layers
-        self.fc1 = nn.Linear(conv_output_features, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, image_size * image_size * output_channels)
+        self.fc1 = nn.Linear(conv_output_features, fc_layers[0])
+        self.fc2 = nn.Linear(fc_layers[0], fc_layers[1])
+        self.fc3 = nn.Linear(fc_layers[1], image_size * image_size * output_channels)
 
     def forward(self, x):
         """

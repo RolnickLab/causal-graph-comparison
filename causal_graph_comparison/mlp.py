@@ -29,6 +29,7 @@ class MLP(nn.Module):
             out_features = self.layers[layer + 1] if layer < self.num_layers - 1 else self.output_size
 
             module_dict[f"nonlin{layer}"] = activation()
+            module_dict[f"dropout{layer+1}"] = nn.Dropout(0.5)
             module_dict[f"lin{layer+1}"] = nn.Linear(in_features, out_features)
 
         self.model = nn.Sequential(module_dict)

@@ -5,7 +5,6 @@ from climatem.model.train_model import TrainingLatent
 from climatem.model.tsdcd_latent import LatentTSDCD
 from climatem.model.metrics import edge_errors, mcc_latent, precision_recall, shd, w_mae
 import torch
-import wandb
 import time
 import numpy as np
 
@@ -33,11 +32,15 @@ def train_picabu(
     optim_params,
     plot_params,
     savar_params,
+    wandb,
     trained_model = None, # if None, train picabu on savar, otherwise train on model-generated data
     trained_model_params = None,
 ):
     # to run picabu as VAE, value should be 1e-8
     vae_mode = optim_params.ortho_mu_init < 1 
+
+    # add wandb to accelerator trackers
+    accelerator.trackers = [wandb]
 
     # Set the name of the run based on what picabu is trained on
     if trained_model is not None:

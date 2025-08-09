@@ -54,7 +54,7 @@ def plot_causal_graph(graph, val_matrix, var_names, num_modes, difficulty, model
         var_names=var_names,
         link_colorbar_label='PC')
     plt.title(f"Causal graph for {model_name} (PCMCI+)\n Trained on SAVAR with {num_modes} modes, difficulty {difficulty}, seed {seed}", pad=20)
-    plt.savefig(f"{OUTPUTS_DIR}/pcmci_causal_discovery-{model_name}-modes_{num_modes}-difficulty_{difficulty}-seed_{seed}.png", dpi=300)
+    plt.savefig(f"{OUTPUTS_DIR}/{model_name}-modes_{num_modes}-difficulty_{difficulty}-seed_{seed}-pcmci_causal_discovery.png", dpi=300)
     plt.close()
     return
 
@@ -73,7 +73,7 @@ def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, d
     Run causal discovery on the outputs, targets, and inputs.
     Accept either array or path to array.
     """
-    output_filename = f"{OUTPUTS_DIR}/pcmci_causal_discovery-{model_name}-modes_{num_modes}-difficulty_{difficulty}-seed_{seed}.npz"
+    output_filename = f"{OUTPUTS_DIR}/{model_name}-modes_{num_modes}-difficulty_{difficulty}-seed_{seed}-pcmci_causal_discovery.npz"
     if Path(output_filename).exists():
         print(f"Causal discovery results already exist for {model_name}, skipping...")
         data = np.load(output_filename)

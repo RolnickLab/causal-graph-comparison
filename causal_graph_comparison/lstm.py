@@ -16,14 +16,14 @@ class LSTM(nn.Module):
         self.name = "lstm"
         # Input size is flattened 40x40=1600 dimensional vector
         # Hidden size can be adjusted as needed
-        self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, batch_first=True, num_layers=num_layers)
+        self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, batch_first=True, num_layers=num_layers, dropout=0.3)
 
         # Output layer to predict next 40x40 frame
         self.decoder = nn.Sequential(
-            nn.Dropout(p=0.2),  
+            nn.Dropout(p=0.5),  
             nn.LeakyReLU(),
             nn.Linear(hidden_size, hidden_size),
-            nn.Dropout(p=0.2),  
+            nn.Dropout(p=0.5),  
             nn.LeakyReLU(),
             nn.Linear(hidden_size, input_size),
         )

@@ -62,7 +62,7 @@ def train(params: dict, model: nn.Module, device: torch.device, train_loader: to
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
                     epoch,
                     batch_idx * len(data),
-                    len(train_loader._dataset),
+                    len(train_loader.dataset),
                     100.0 * batch_idx / len(train_loader),
                     loss.item(),
                 )
@@ -86,7 +86,7 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
 
             test_loss += F.mse_loss(output, target).item()  # sum up batch loss
 
-    test_loss /= len(test_loader._dataset)
+    test_loss /= len(test_loader.dataset)
 
     print(f"\nTest set: Average loss: {test_loss:.4f}\n")
     wandb.log({"loss_valid": test_loss})
@@ -94,19 +94,22 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
     return test_loss
 
 
-def run_trainer(model, datamodule, params, modes, difficulty, seed, device):
+def run_trainer(model, wandb, datamodule, params, modes, difficulty, seed, device):
     save_name = f"{model.name}-modes_{modes}-diff_{difficulty}-seed_{seed}"
 
     # check if model already exists
     model_path = MODELS_DIR / f"{save_name}.pt"
-    if model_path.exists():
-        print(f"=== SKIPPING TRAINING: Model already exists at {model_path}")
-        return model_path
 
-    train_loader = iter(datamodule.train_dataloader(accelerator=accelerator))
-    test_loader = iter(datamodule.val_dataloader())
+    # if model_path.exists(): 
+    #     print(f"=== SKIPPING TRAINING: Model already exists at {model_path}")
+    #     return model_path
 
-    optimizer = optim.Adam(model.parameters(), lr=params[model.name]["training_params"]["learning_rate"])
+    # wandb.watch(model, log="all") # TODO
+
+    train_loader = datamodule.train_dataloader(accelerator=accelerator)
+    test_loader = datamodule.val_dataloader()
+
+    optimizer = optim.Adam(model.parameters(), lr=params[model.name]["training_params"]["learning_rate"], weight_decay=1e-5)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=params[model.name]["training_params"]["gamma"])
 
@@ -114,7 +117,9 @@ def run_trainer(model, datamodule, params, modes, difficulty, seed, device):
     best_test_loss = test(model, device, test_loader)    
 
     epochs = params[model.name]["training_params"]["num_epochs"]
+    print(f"Training for {epochs} epochs")
     for epoch in range(1, epochs + 1):
+        
         train(params, model, device, train_loader, optimizer, epoch)
         test_loss = test(model, device, test_loader)
         scheduler.step()

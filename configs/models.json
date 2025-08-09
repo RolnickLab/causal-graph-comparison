@@ -22,16 +22,16 @@
             "num_layers": 2
         },
         "training_params": {
-            "num_epochs": 5,
+            "num_epochs": 100,
             "batch_size": 128,
-            "learning_rate": 1e-3,            
+            "learning_rate": 1e-2,            
             "gamma": 0.7
         }
     },
 
     "lstm": {
         "model_params": {
-            "num_layers": 2
+            "num_layers": 1
         },
         "training_params": {
             "num_epochs": 100,
@@ -44,11 +44,11 @@
     "cnn": {
         "model_params": {
             "channels": [32, 64, 128],
-            "kernel_sizes": [3, 3, 3],
-            "fc_hidden": [512, 256]
+            "kernels": [3, 3, 5],
+            "fc_layers": [512, 256]
         },
         "training_params": {
-            "num_epochs": 5,
+            "num_epochs": 100,
             "batch_size": 128,
             "learning_rate": 1e-3,            
             "gamma": 0.7
