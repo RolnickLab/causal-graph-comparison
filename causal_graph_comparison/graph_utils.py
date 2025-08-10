@@ -20,9 +20,9 @@ def binarize_array(array: np.ndarray) -> np.ndarray:
     return (array > 0).astype(np.int8)
 
 
-def permute_graph(datamodule, exp_params, savar_params, model_name):
+def permute_graph(datamodule, experiment_name):
 
-    results = PicabuResultsPaths(exp_params, savar_params, model_name)
+    results = PicabuResultsPaths(experiment_name)
 
     # load results
     learned_graph = results.graph
@@ -78,7 +78,7 @@ def permute_graph(datamodule, exp_params, savar_params, model_name):
         plot_through_time=True,
     )
 
-    save_name = f"picabu_cdsd-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+    save_name = f"{experiment_name}-picabu_cdsd.npz"
     save_path = OUTPUTS_DIR / Path(save_name)
 
     np.savez(save_path, val_matrix=permuted_temporal_matrix)
@@ -86,7 +86,7 @@ def permute_graph(datamodule, exp_params, savar_params, model_name):
     return permuted_temporal_matrix
 
 
-def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None, graph: np.ndarray = None, density_output: str = 'sparse', density_input: str = 'sparse') -> np.ndarray:
+def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None, graph: np.ndarray = None, experiment_name: str = None, density_output: str = 'sparse', density_input: str = 'sparse') -> np.ndarray:
     """Flatten a temporal adjacency graph.
 
     Args:
@@ -110,9 +110,9 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
     if graph is None:
         try:
             if causal_method == "crl":
-                temporal_graph_path = f"{OUTPUTS_DIR}/picabu_cdsd-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+                temporal_graph_path = f"{OUTPUTS_DIR}/{experiment_name}-picabu_cdsd.npz"
             else: # causal_method == "cd"
-                temporal_graph_path = f"{OUTPUTS_DIR}/pcmci_causal_discovery-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+                temporal_graph_path = f"{OUTPUTS_DIR}/{experiment_name}-pcmci_causal_discovery.npz"
             temporal_graph = np.load(temporal_graph_path)['val_matrix']
         except FileNotFoundError:
             raise FileNotFoundError(f"Temporal graph not found, check your exp_params, savar_params, and model_name")
@@ -171,15 +171,11 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
         flattened_graph = np.array(flattened_graph)
 
     # populate new adjacency matrix with values from original graph
-    if causal_method is not None:
-        causal_method_str = f"{causal_method}-"
-    else:
-        causal_method_str = ""
 
-    if exp_params is not None and savar_params is not None and model_name is not None:  
-        save_name = f"{causal_method_str}flattened_graph-{model_name}-modes_{exp_params.d_z}-difficulty_{savar_params.difficulty}-seed_{exp_params.random_seed}.npz"
+    if experiment_name is not None:  
+        save_name = f"{experiment_name}-flat_graph-{causal_method}.npz"
     else:
-        save_name = f"{causal_method_str}flattened_graph.npz"
+        save_name = f"flat_graph{causal_method}.npz"
 
     save_path = OUTPUTS_DIR / Path(save_name)
 

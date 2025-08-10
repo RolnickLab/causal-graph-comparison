@@ -71,7 +71,7 @@ def train(params: dict, model: nn.Module, device: torch.device, train_loader: to
 
 def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.DataLoader):
     """
-    Testing loop for
+    Testing loop for model
     args:
         model: model to test
         device: device to test on
@@ -94,17 +94,16 @@ def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.D
     return test_loss
 
 
-def run_trainer(model, wandb, datamodule, params, modes, difficulty, seed, device):
-    save_name = f"{model.name}-modes_{modes}-diff_{difficulty}-seed_{seed}"
+def run_trainer(model, experiment_name, datamodule, params, device):
 
     # check if model already exists
-    model_path = MODELS_DIR / f"{save_name}.pt"
+    model_path = MODELS_DIR / f"{experiment_name}.pt"
+    best_model_path = MODELS_DIR / f"best-{experiment_name}.pt"
+    print(f"Model path: {model_path}")
 
     # if model_path.exists(): 
     #     print(f"=== SKIPPING TRAINING: Model already exists at {model_path}")
     #     return model_path
-
-    # wandb.watch(model, log="all") # TODO
 
     train_loader = datamodule.train_dataloader(accelerator=accelerator)
     test_loader = datamodule.val_dataloader()
@@ -114,7 +113,7 @@ def run_trainer(model, wandb, datamodule, params, modes, difficulty, seed, devic
     scheduler = StepLR(optimizer, step_size=1, gamma=params[model.name]["training_params"]["gamma"])
 
     # basline test with untrained model
-    best_test_loss = test(model, device, test_loader)    
+    best_test_loss = test(model, device, test_loader)
 
     epochs = params[model.name]["training_params"]["num_epochs"]
     print(f"Training for {epochs} epochs")
@@ -126,7 +125,8 @@ def run_trainer(model, wandb, datamodule, params, modes, difficulty, seed, devic
 
         if test_loss < best_test_loss:
             best_test_loss = test_loss
-            torch.save(model, model_path)
-        torch.save(model, f"{MODELS_DIR}/final-{save_name}.pt")
+            torch.save(model, best_model_path)
 
-    return model_path
+    torch.save(model, model_path)
+
+    return model_path, best_model_path

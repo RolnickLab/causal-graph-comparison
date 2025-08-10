@@ -48,7 +48,7 @@ def train_picabu(
     elif vae_mode:
         trained_model_name = "vae"
     else:
-        trained_model_name = "picabu"
+        trained_model_name = "picabu_savar"
 
     save_name = f"modes_{experiment_params.d_z}-difficulty_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
     name = f"{trained_model_name}-{save_name}"
