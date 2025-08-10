@@ -204,6 +204,9 @@ if args.model == "picabu":
 
     experiment_name = f"savar-{experiment_name}"
 
+    target_batch_size = trained_model_params["common"]["test_params"]["inference_batch_size"]
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=target_batch_size, shuffle=False)
+
     # === Causal discovery ===
     # 0.1) Run causal discovery on savar ground truth
     ## 0.1a) get targets saved from rollout (1000 samples, 20 timesteps)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=run_mlp_%j                                        # Set name of job
+#SBATCH --job-name=run_picabu_%j                                        # Set name of job
 #SBATCH --gpus-per-task=1                                               # Ask for 1 GPU
 #SBATCH --cpus-per-task=12                                              # Ask for 12 CPUs
 #SBATCH --ntasks-per-node=1                                             # Ask for 1 node

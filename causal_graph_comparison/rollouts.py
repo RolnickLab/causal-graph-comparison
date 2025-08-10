@@ -101,7 +101,7 @@ def get_targets(test_loader, n_samples, rollouts, n_modes, difficulty, seed):
     _, target = next(iter(test_loader))
 
     for i in range(rollouts):
-        target_list.append(target[i : n_samples - rollouts + i].squeeze().cpu().numpy())
+        target_list.append(target[i : (n_samples - rollouts) + i].squeeze().cpu().numpy())
     
     # Convert lists to array
     target_array = np.array(target_list)
