@@ -101,9 +101,9 @@ def run_trainer(model, experiment_name, datamodule, params, device):
     best_model_path = MODELS_DIR / f"best-{experiment_name}.pt"
     print(f"Model path: {model_path}")
 
-    # if model_path.exists(): 
-    #     print(f"=== SKIPPING TRAINING: Model already exists at {model_path}")
-    #     return model_path
+    if model_path.exists(): 
+        print(f"=== SKIPPING TRAINING: Model already exists at {model_path}")
+        return model_path, best_model_path
 
     train_loader = datamodule.train_dataloader(accelerator=accelerator)
     test_loader = datamodule.val_dataloader()

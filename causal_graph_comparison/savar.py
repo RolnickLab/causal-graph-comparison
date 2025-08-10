@@ -13,7 +13,7 @@ def generate_savar_data(experiment_params, data_params, savar_params, train_para
     os.makedirs(data_params.data_dir, exist_ok=True)
     print(f"Data directory: {data_params.data_dir}")
 
-    savar_name = f"modes_{experiment_params.d_z}-difficulty_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
+    savar_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
     #  check if pickle exists, if so, load datamodule
     pickle_path = Path(data_params.data_dir) / Path(f"{savar_name}.pkl")
     if pickle_path.exists() and reload_data:

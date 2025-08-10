@@ -260,39 +260,39 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
 #    ["x4t5->x1t0", "x4t5->x1t1", "x4t5->x1t2", "x4t5->x1t3", "x4t5->x1t4", "x4t5->x1t5", "x4t5->x2t0", "x4t5->x2t1", "x4t5->x2t2", "x4t5->x2t3", "x4t5->x2t4", "x4t5->x2t5", "x4t5->x3t0", "x4t5->x3t1", "x4t5->x3t2", "x4t5->x3t3", "x4t5->x3t4", "x4t5->x3t5", "x4t5->x4t0", "x4t5->x4t1", "x4t5->x4t2", "x4t5->x4t3", "x4t5->x4t4", "x4t5->x4t5"]
 #    ])
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    test_graph_tcp = np.array([ 
-        [["aa1", "ba1"], # from node a to a with a time lag of 1, from b to a with a time lag of 1 (child node is at time 0)
-        ["ab1", "bb1"]], 
-        [["aa2", "ba2"],
-        ["ab2", "bb2"]],
-        [["aa3", "ba3"],
-        ["ab3", "bb4"]]
-    ])
+#     test_graph_tcp = np.array([ 
+#         [["aa1", "ba1"], # from node a to a with a time lag of 1, from b to a with a time lag of 1 (child node is at time 0)
+#         ["ab1", "bb1"]], 
+#         [["aa2", "ba2"],
+#         ["ab2", "bb2"]],
+#         [["aa3", "ba3"],
+#         ["ab3", "bb4"]]
+#     ])
 
-    test_graph_pct = np.array([
-        [["aa1", "aa2", "aa3"],
-        ["ab1", "ab2", "ab3"]],
-        [["ba1", "ba2", "ba3"],
-        ["bb1", "bb2", "bb3"]]
-    ])
+#     test_graph_pct = np.array([
+#         [["aa1", "aa2", "aa3"],
+#         ["ab1", "ab2", "ab3"]],
+#         [["ba1", "ba2", "ba3"],
+#         ["bb1", "bb2", "bb3"]]
+#     ])
 
-    desired_output = np.array([
-        ["aa1", '', '', "ab1", '', ''],
-        ["aa2", '', '', "ab2", '', ''],
-        ["aa3", '', '', "ab3", '', ''],
-        ["ba1", '', '', "bb1", '', ''],
-        ["ba2", '', '', "bb2", '', ''],
-        ["ba3", '', '', "bb3", '', '']
-    ])
+#     desired_output = np.array([
+#         ["aa1", '', '', "ab1", '', ''],
+#         ["aa2", '', '', "ab2", '', ''],
+#         ["aa3", '', '', "ab3", '', ''],
+#         ["ba1", '', '', "bb1", '', ''],
+#         ["ba2", '', '', "bb2", '', ''],
+#         ["ba3", '', '', "bb3", '', '']
+#     ])
 
-    flat_tcp = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=test_graph_tcp)
-    print("flat_tcp:\n", flat_tcp)
+#     flat_tcp = flatten_temporal_adjacency_graph(shape="time_child_parent", graph=test_graph_tcp)
+#     print("flat_tcp:\n", flat_tcp)
 
-    flat_pct = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=test_graph_pct)
-    print(" =============== ")
-    print("flat_pct:\n", flat_pct)
+#     flat_pct = flatten_temporal_adjacency_graph(shape="parent_child_time", graph=test_graph_pct)
+#     print(" =============== ")
+#     print("flat_pct:\n", flat_pct)
 
 
 

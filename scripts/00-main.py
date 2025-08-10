@@ -146,7 +146,7 @@ print("test_dataset length: ", len(test_dataset))
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=data_params.batch_size, shuffle=True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=data_params.eval_batch_size, shuffle=False)
 
-# ------ load params for causal discovery ------
+# ------ param dictionaries ------
 
 # load inference params from config file
 n_samples = trained_model_params["common"]["test_params"]["num_samples"]
@@ -330,7 +330,7 @@ elif args.model == "vae":
 
      # 1.7) Flatten temporal adjacency graphs: causal discovery
     vae_flat_cd_graph = flatten_temporal_adjacency_graph(
-        shape="parent_child_time", causal_method="cd", graph=vae_val_matrix
+        shape="parent_child_time", causal_method="cd", graph=vae_val_matrix, experiment_name=experiment_name
     )
 
     # 1.8) Binarize causal discovery & causal representation learning graphs
@@ -352,7 +352,7 @@ elif args.model == "vae":
 
     # 1.6) Flatten temporal adjacency graphs: causal representation learning
     vae_flat_crl_graph = flatten_temporal_adjacency_graph(
-        shape="time_child_parent", causal_method="crl", graph=vae_permuted_crl_graph
+        shape="time_child_parent", causal_method="crl", graph=vae_permuted_crl_graph, experiment_name=experiment_name
     )
 
     vae_flat_crl_graph = binarize_array(vae_flat_crl_graph)
@@ -420,7 +420,7 @@ elif args.model == "mlp":
     run.finish()
 
     # 2.7) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
-    mlp_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_mlp")
+    mlp_permuted_crl_graph = permute_graph(datamodule, experiment_name)
     
     # 2.8) Flatten temporal adjacency graphs: causal representation learning
     mlp_flat_crl_graph = flatten_temporal_adjacency_graph(
@@ -490,7 +490,7 @@ elif args.model == "lstm":
     run.finish()
 
     # 3.7) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
-    lstm_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_lstm")
+    lstm_permuted_crl_graph = permute_graph(datamodule, experiment_name)
 
     # 3.8) Flatten temporal adjacency graphs: causal representation learning
     lstm_flat_crl_graph = flatten_temporal_adjacency_graph(
@@ -573,11 +573,11 @@ elif args.model == "cnn":
     run.finish()
 
     # 4.7) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
-    cnn_permuted_crl_graph = permute_graph(datamodule, experiment_params, savar_params, "picabu_cnn")
+    cnn_permuted_crl_graph = permute_graph(datamodule, experiment_name)
 
     # 4.8) Flatten temporal adjacency graphs: causal representation learning
     cnn_flat_crl_graph = flatten_temporal_adjacency_graph(
-        shape="time_child_parent", causal_method="crl", graph=cnn_permuted_crl_graph
+        shape="time_child_parent", causal_method="crl", graph=cnn_permuted_crl_graph, experiment_name=experiment_name
     )
 
     # 4.9) Binarize causal discovery & causal representation learning graphs

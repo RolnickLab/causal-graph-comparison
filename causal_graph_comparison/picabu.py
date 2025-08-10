@@ -50,7 +50,7 @@ def train_picabu(
     else:
         trained_model_name = "picabu_savar"
 
-    save_name = f"modes_{experiment_params.d_z}-difficulty_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
+    save_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
     name = f"{trained_model_name}-{save_name}"
     exp_path = Path(experiment_params.exp_path) / name
     exp_path.mkdir(exist_ok=True)
