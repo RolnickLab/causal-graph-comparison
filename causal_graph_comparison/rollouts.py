@@ -4,12 +4,12 @@ import numpy as np
 
 from causal_graph_comparison import OUTPUTS_DIR
 
-def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, difficulty, seed):
+def run_rollouts(model, experiment_name, rollouts, n_samples, test_loader, device):
 
-    save_path = OUTPUTS_DIR / f"{model.name}-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
+    save_path = OUTPUTS_DIR / f"{experiment_name}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
 
     if Path(save_path).exists():
-        print(f"Rollouts already exist for {model.name}, skipping...")
+        print(f"Rollouts already exist for {experiment_name}, skipping...")
         return save_path
 
     n_samples = n_samples - 1 # for indexing starting at 0
@@ -36,12 +36,12 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
                 output, h0, c0 = model(data, h0=h0, c0=c0, return_hidden=True)
             
             elif model.name == "vae":
-                print("DBG VAE target shape: ", target.shape)
-                print("DBG VAE data shape: ", data.shape)
+                # print("DBG VAE target shape: ", target.shape)
+                # print("DBG VAE data shape: ", data.shape)
                 output, _, _, _, _ = model.predict(data, target)
                 output = output.unsqueeze(1)
-                print("DBG VAE output shape: ", output.shape)
-                print("==========")
+                # print("DBG VAE output shape: ", output.shape)
+                # print("==========")
             else:
                 # for CNN & MLP
                 output = model(data)
@@ -52,7 +52,9 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
             data = torch.roll(data, shifts=-1, dims=1)
 
             # replace last timestep with output
-            data[:, -1, :, :] = output[:,0,:,:]
+            # clip output to be within 1,000% of the previous timestep --> deals with exploding residuals
+            delta = np.abs(data[:, -2, :, :] * 10)
+            data[:, -1, :, :] = np.clip(output[:,0,:,:], -delta, delta)
 
         # get targets
         target_list = []
@@ -86,9 +88,9 @@ def run_rollouts(model, device, test_loader, n_samples, rollouts, n_modes, diffi
     )
     return save_path
 
-def get_targets(test_loader, n_samples, rollouts, n_modes, difficulty, seed):
+def get_targets(test_loader, n_samples, rollouts, experiment_name):
 
-    save_path = OUTPUTS_DIR / f"targets-modes_{n_modes}-diff_{difficulty}-seed_{seed}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
+    save_path = OUTPUTS_DIR / f"{experiment_name}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
 
     if Path(save_path).exists():
         print(f"Targets already exist, skipping...")

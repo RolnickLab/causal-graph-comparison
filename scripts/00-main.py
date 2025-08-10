@@ -171,12 +171,9 @@ picabu_train_args = {
 
 # params for rollouts
 rollout_args = {
-    "device": device,
-    "test_loader": inference_loader,
     "n_samples": n_samples,
-    "n_modes": args.num_modes,
-    "difficulty": args.difficulty,
-    "seed": args.seed,
+    "test_loader": inference_loader,
+    "device": device,
 }
 
 causal_discovery_args = {
@@ -211,7 +208,7 @@ if args.model == "picabu":
     # 0.1) Run causal discovery on savar ground truth
     ## 0.1a) get targets saved from rollout (1000 samples, 20 timesteps)
 
-    savar_targets_path = get_targets(test_loader, n_samples, rollouts, args.num_modes, args.difficulty, args.seed)
+    savar_targets_path = get_targets(test_loader, n_samples, rollouts, experiment_name)
     savar_targets = np.load(savar_targets_path)["targets"]
     ## 0.1b) run causal discovery
     savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(
@@ -315,7 +312,7 @@ elif args.model == "vae":
     # 1.2) Run causal discovery on vae
     ## 1.2a) run inference --> saves scratch/cgc/outputs/vae-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
     print(f"Running inference on vae: {n_samples} samples, {rollouts} timesteps...")
-    vae_rollouts_path = run_rollouts(model=vae_model, rollouts=rollouts, **rollout_args)
+    vae_rollouts_path = run_rollouts(model=vae_model, experiment_name=experiment_name, rollouts=rollouts, **rollout_args)
 
     ## 1.2b) run causal discovery
     vae_graph, vae_val_matrix, vae_p_matrix, vae_corr_matrix, vae_var_names = causal_discovery(
@@ -326,7 +323,7 @@ elif args.model == "vae":
     )
 
     # 1.3) Run rollouts with 1 step for vae (for rmse, statistical metrics)
-    vae_rollouts_path = run_rollouts(model=vae_model, rollouts=1, **rollout_args)
+    vae_rollouts_path = run_rollouts(model=vae_model, experiment_name=experiment_name, rollouts=1, **rollout_args)
 
      # 1.7) Flatten temporal adjacency graphs: causal discovery
     vae_flat_cd_graph = flatten_temporal_adjacency_graph(
@@ -390,7 +387,7 @@ elif args.model == "mlp":
     ## 2.2a) run inference - create 1000 samples 20 timesteps
     print(f"Running inference on mlp: {n_samples} samples, {rollouts} timesteps...")
 
-    mlp_rollouts_path = run_rollouts(model=mlp_model, rollouts=rollouts, **rollout_args)
+    mlp_rollouts_path = run_rollouts(model=mlp_model, experiment_name=experiment_name, rollouts=rollouts, **rollout_args)
 
     ## 2.2b) run causal discovery
     mlp_graph, mlp_val_matrix, mlp_p_matrix, mlp_corr_matrix, mlp_var_names = causal_discovery(
@@ -401,7 +398,7 @@ elif args.model == "mlp":
     )
 
     # 2.3) Run rollouts with 1 step for mlp (for rmse, statistical metrics)
-    mlp_rollouts_path = run_rollouts(model=mlp_model, rollouts=1, **rollout_args)
+    mlp_rollouts_path = run_rollouts(model=mlp_model, experiment_name=experiment_name, rollouts=1, **rollout_args)
 
     # 2.4) Flatten temporal adjacency graphs: causal discovery
     mlp_flat_cd_graph = flatten_temporal_adjacency_graph(
@@ -457,7 +454,7 @@ elif args.model == "lstm":
     # 3.2) Run causal discovery on lstm
     ## 3.2a) run inference --> saves scratch/cgc/outputs/lstm-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
     print(f"Running inference on lstm: {n_samples} samples, {rollouts} timesteps...")
-    lstm_rollouts_path = run_rollouts(model=lstm_model, rollouts=rollouts, **rollout_args)
+    lstm_rollouts_path = run_rollouts(model=lstm_model, experiment_name=experiment_name, rollouts=rollouts, **rollout_args)
 
     ## 3.2b) run causal discovery
     lstm_graph, lstm_val_matrix, lstm_p_matrix, lstm_corr_matrix, lstm_var_names = causal_discovery(
@@ -468,7 +465,7 @@ elif args.model == "lstm":
     )
 
     # 3.3) Run rollouts with 1 step for lstm (for rmse, statistical metrics)
-    lstm_rollouts_path = run_rollouts(model=lstm_model, rollouts=1, **rollout_args)
+    lstm_rollouts_path = run_rollouts(model=lstm_model, experiment_name=experiment_name, rollouts=1, **rollout_args)
 
     # 3.4) Flatten temporal adjacency graphs: causal discovery
     lstm_flat_cd_graph = flatten_temporal_adjacency_graph(
@@ -540,7 +537,7 @@ elif args.model == "cnn":
     ## 4.2a) run inference --> saves scratch/cgc/outputs/cnn-modes_4-diff_easy-seed_1-samples_999-rollouts_20steps.npz
     print(f"Running inference on cnn: {n_samples} samples, {rollouts} timesteps...")
 
-    cnn_rollouts_path = run_rollouts(model=cnn_model, rollouts=rollouts, **rollout_args)
+    cnn_rollouts_path = run_rollouts(model=cnn_model, experiment_name=experiment_name, rollouts=rollouts, **rollout_args)
 
     ## 4.2b) run causal discovery
     cnn_graph, cnn_val_matrix, cnn_p_matrix, cnn_corr_matrix, cnn_var_names = causal_discovery(
@@ -551,7 +548,7 @@ elif args.model == "cnn":
     )
 
     # 4.3) Run rollouts with 1 step for cnn (for rmse, statistical metrics)
-    cnn_rollouts_path = run_rollouts(model=cnn_model, rollouts=1, **rollout_args)
+    cnn_rollouts_path = run_rollouts(model=cnn_model, experiment_name=experiment_name, rollouts=1, **rollout_args)
 
     # 4.4) Flatten temporal adjacency graphs: causal discovery
     cnn_flat_cd_graph = flatten_temporal_adjacency_graph(
