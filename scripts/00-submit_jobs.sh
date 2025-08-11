@@ -2,7 +2,7 @@
 seed=1
 for mode in 4 16 64; do
     for model in mlp lstm cnn picabu vae; do
-        for difficulty in easy med_easy; do
+        for difficulty in med_hard hard; do
             if [[ $model != vae ]]; then
                 if [[ $mode -eq 4 ]]; then
                     runtime=12:00:00

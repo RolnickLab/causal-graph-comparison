@@ -135,9 +135,11 @@ def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, d
 
     # save results
     print(f"Saving causal discovery results to {output_filename}")
-    np.savez(output_filename, graph=graph, val_matrix=val_matrix, p_matrix=p_matrix, corr_matrix=corr_matrix, var_names=var_names)
 
-    return graph, val_matrix, p_matrix, corr_matrix, var_names
+    # drop autocorrelation lag 0
+    np.savez(output_filename, graph=graph[:,:,1:], val_matrix=val_matrix[:,:,1:], p_matrix=p_matrix[:,:,1:], corr_matrix=corr_matrix, var_names=var_names)
+
+    return graph[:,:,1:], val_matrix[:,:,1:], p_matrix[:,:,1:], corr_matrix, var_names
 
 if __name__ == "__main__":
 

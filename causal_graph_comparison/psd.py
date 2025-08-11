@@ -38,23 +38,28 @@ def power_spectral_density(rollouts_path, num_modes):
     targets = get_mean_modes(targets, num_modes)
     outputs = get_mean_modes(outputs, num_modes)
 
+    print("outputs.shape: ", outputs.shape)
+
     samples = targets.shape[0]
     timesteps = targets.shape[1]
 
     # concat targets into one 2d array (samples * timesteps) taking first timesteps from targets[0,:,:] then first target from each sample at target[timesteps,:,:] onwards
     # might not be necessary
     all_targets = get_all_targets(targets)
+    print("all_targets.shape: ", all_targets.shape)
 
     # get fft coefficients
     fft_coeffs_rollouts = np.fft.rfft(outputs, axis = 1)
     print("fft_coeffs_rollouts.shape: ", fft_coeffs_rollouts.shape)
-    fft_coeffs_savar = np.fft.rfft(targets[0, :, :], axis = 0)
-    fft_coeffs_savar_all = np.fft.rfft(all_targets, axis = 0)
-    
+    fft_coeffs_savar = np.fft.rfft(targets, axis = 1)
+
     print("fft_coeffs_savar.shape: ", fft_coeffs_savar.shape)
 
     fft_coeffs_rollouts = fft_coeffs_rollouts.mean(0)
-    print("fft_coeffs_rollouts.shape: ", fft_coeffs_rollouts.shape)
+    fft_coeffs_savar = fft_coeffs_savar.mean(0)
+
+    print("fft_coeffs_rollouts_mean.shape: ", fft_coeffs_rollouts.shape)
+    print("fft_coeffs_savar_mean.shape: ", fft_coeffs_savar.shape)
 
     LSD = np.abs(fft_coeffs_rollouts - fft_coeffs_savar).mean()
     print("LSD: ", LSD)
@@ -62,9 +67,8 @@ def power_spectral_density(rollouts_path, num_modes):
     # take just the real part of the fft coefficients
     fft_coeffs_rollouts = fft_coeffs_rollouts.real
     fft_coeffs_savar = fft_coeffs_savar.real
-    fft_coeffs_savar_all = fft_coeffs_savar_all.real
 
-    return LSD, fft_coeffs_rollouts, fft_coeffs_savar, fft_coeffs_savar_all
+    return LSD, fft_coeffs_rollouts, fft_coeffs_savar
 
 
 if __name__ == "__main__":

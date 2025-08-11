@@ -150,71 +150,11 @@ def train_picabu(
 
     valid_loss = trainer.train_with_QPM()
 
-    # Metrics
-
-    # save final results, (MSE)
-    metrics = {
-        "shd": 0.0,
-        "precision": 0.0,
-        "recall": 0.0,
-        "train_mse": 0.0,
-        "val_mse": 0.0,
-        "mcc": 0.0,
-    }
-
-    # if we have the GT, also compute (SHD, Pr, Re, MCC)
-    if not gt_params.no_gt:
-        gt_graph = trainer.gt_dag[:-1]  # remove the graph G_t
-
-        learned_graph = (
-            trainer.model.get_adj()
-            .detach()
-            .numpy()
-            .reshape(gt_graph.shape[0], gt_graph.shape[1], -1)
-        )
-
-        score, cc_program_perm, assignments, z, z_hat, _ = mcc_latent(
-            trainer.model, trainer.data
-        )
-        permutation = np.zeros((gt_graph.shape[1], gt_graph.shape[1]))
-        permutation[np.arange(gt_graph.shape[1]), assignments[1]] = 1
-        gt_graph = permutation.T @ gt_graph @ permutation
-
-        metrics["mcc"] = score
-        metrics["w_mse"] = w_mae(
-            trainer.model.autoencoder.get_w_decoder()
-            .detach()
-            .numpy()[:, :, assignments[1]],
-            datamodule.gt_w,
-        )
-        metrics["shd"] = shd(learned_graph, gt_graph)
-        metrics["precision"], metrics["recall"] = precision_recall(
-            learned_graph, gt_graph
-        )
-        errors = edge_errors(learned_graph, gt_graph)
-        metrics["tp"] = errors["tp"]
-        metrics["fp"] = errors["fp"]
-        metrics["tn"] = errors["tn"]
-        metrics["fn"] = errors["fn"]
-        metrics["n_edge_gt_graph"] = np.sum(gt_graph)
-        metrics["n_edge_learned_graph"] = np.sum(learned_graph)
-        metrics["execution_time"] = time.time() - t0
-
-        for key, val in valid_loss.items():
-            metrics[key] = val
-
     # assert that trainer.model is in eval mode
     if trainer.model.training:
         print("Model is in train mode")
     else:
         print("Model is in eval mode")
-
-    # for key, val in metrics.items():
-    #     wandb.summary[key] = val
-
-    # save the metrics
-    with open(exp_path / "metrics.json", "w") as file:
-        json.dump(metrics, file, indent=4)
 
     # finally, save the model
     torch.save(trainer.model.state_dict(), exp_path / "model-final.pth")

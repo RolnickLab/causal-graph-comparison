@@ -96,9 +96,6 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
     Returns:
         The flattened temporal adjacency graph (Num_vars * Num_time_steps, Num_vars * Num_time_steps)
     """
-    print("Initial graph shape:", graph.shape)
-    print("Initial graph:\n", graph)
-    print("")
 
     if causal_method != "cd" and causal_method != "crl" and causal_method is not None:
         raise ValueError(f"Invalid causal method: {causal_method}, please choose from 'cd' (causal discovery) or 'crl' (causal representation learning)")
@@ -110,15 +107,22 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
     if graph is None:
         try:
             if causal_method == "crl":
+                print("Loading picabu graph at: ", f"{OUTPUTS_DIR}/{experiment_name}-picabu_cdsd.npz")
                 temporal_graph_path = f"{OUTPUTS_DIR}/{experiment_name}-picabu_cdsd.npz"
+                temporal_graph = np.load(temporal_graph_path)['val_matrix'][:,:,1:]
             else: # causal_method == "cd"
+                print("Loading causal discovery graph at: ", f"{OUTPUTS_DIR}/{experiment_name}-pcmci_causal_discovery.npz")
                 temporal_graph_path = f"{OUTPUTS_DIR}/{experiment_name}-pcmci_causal_discovery.npz"
-            temporal_graph = np.load(temporal_graph_path)['val_matrix']
+                temporal_graph = np.load(temporal_graph_path)['val_matrix'][:,:,1:]
         except FileNotFoundError:
             raise FileNotFoundError(f"Temporal graph not found, check your exp_params, savar_params, and model_name")
 
     else:
         temporal_graph = graph
+
+    print("Initial graph shape:", temporal_graph.shape)
+    print("Initial graph:\n", temporal_graph)
+    print("")
 
     if shape == "parent_child_time":
         num_vars, _, time_steps = temporal_graph.shape
@@ -150,7 +154,7 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
                     # print(f"new col: {j * time_steps + k}")
                     # print("=============")
 
-                    flattened_graph[i * time_steps + k, j * time_steps] = graph[i, j, k]
+                    flattened_graph[i * time_steps + k, j * time_steps] = temporal_graph[i, j, k]
 
     elif shape == "time_child_parent":
         # print("======= time_child_parent =======")
@@ -163,7 +167,7 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
                     # print(f"new row: {k * time_steps +i}")
                     # print(f"new col: {j * time_steps}")
                     # print("=============")
-                    flattened_graph[k * time_steps +i, j * time_steps] = graph[i, j, k]
+                    flattened_graph[k * time_steps +i, j * time_steps] = temporal_graph[i, j, k]
         
     # Convert to numpy array if not already
     if not isinstance(flattened_graph, np.ndarray):
@@ -178,6 +182,7 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
         save_name = f"flat_graph{causal_method}.npz"
 
     save_path = OUTPUTS_DIR / Path(save_name)
+    print("Saving flattened graph to: ", save_path)
 
     np.savez(save_path, val_matrix=flattened_graph)
 
@@ -260,7 +265,13 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
 #    ["x4t5->x1t0", "x4t5->x1t1", "x4t5->x1t2", "x4t5->x1t3", "x4t5->x1t4", "x4t5->x1t5", "x4t5->x2t0", "x4t5->x2t1", "x4t5->x2t2", "x4t5->x2t3", "x4t5->x2t4", "x4t5->x2t5", "x4t5->x3t0", "x4t5->x3t1", "x4t5->x3t2", "x4t5->x3t3", "x4t5->x3t4", "x4t5->x3t5", "x4t5->x4t0", "x4t5->x4t1", "x4t5->x4t2", "x4t5->x4t3", "x4t5->x4t4", "x4t5->x4t5"]
 #    ])
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+
+    experiment_name = "mlp-modes_4-diff_easy-seed_1"
+    flattened_graph = flatten_temporal_adjacency_graph(shape="parent_child_time", causal_method="cd", experiment_name=experiment_name)
+    # binarize graph
+    print("flattened_graph.shape: ", flattened_graph.shape)
+    print("flattened_graph: ", flattened_graph)
 
 #     test_graph_tcp = np.array([ 
 #         [["aa1", "ba1"], # from node a to a with a time lag of 1, from b to a with a time lag of 1 (child node is at time 0)
