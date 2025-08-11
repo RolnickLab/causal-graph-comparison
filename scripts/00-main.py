@@ -201,14 +201,13 @@ if args.model == "picabu":
 
     experiment_name = f"savar-{experiment_name}"
 
-    target_batch_size = trained_model_params["common"]["test_params"]["inference_batch_size"]
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=target_batch_size, shuffle=False)
-
     # === Causal discovery ===
     # 0.1) Run causal discovery on savar ground truth
     ## 0.1a) get targets saved from rollout (1000 samples, 20 timesteps)
 
-    savar_targets_path = get_targets(test_loader, n_samples, rollouts, experiment_name)
+    savar_targets_path_one_step = get_targets(inference_loader, n_samples, 1, experiment_name)
+
+    savar_targets_path = get_targets(inference_loader, n_samples, rollouts, experiment_name)
     savar_targets = np.load(savar_targets_path)["targets"]
     ## 0.1b) run causal discovery
     savar_graph, savar_val_matrix, savar_p_matrix, savar_corr_matrix, savar_var_names = causal_discovery(

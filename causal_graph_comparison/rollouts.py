@@ -53,8 +53,8 @@ def run_rollouts(model, experiment_name, rollouts, n_samples, test_loader, devic
 
             # replace last timestep with output
             # clip output to be within 1,000% of the previous timestep --> deals with exploding residuals
-            delta = np.abs(data[:, -2, :, :] * 10)
-            data[:, -1, :, :] = np.clip(output[:,0,:,:], -delta, delta)
+            delta = torch.abs(data[:, -2, :, :] * 10)
+            data[:, -1, :, :] = torch.clip(output[:,0,:,:], -delta, delta)
 
         # get targets
         target_list = []

@@ -1,6 +1,9 @@
 # import numpy file
 import numpy as np
 import pathlib
+import torch
+
+from causal_graph_comparison.rollouts import run_rollouts
 
 home_dir = pathlib.Path.home()
 path_dir = home_dir.parent
@@ -9,9 +12,9 @@ path_dir = path_dir.parent
 # load numpy file
 # file path from home directory
 
-models = ["mlp", "lstm", "cnn", "vae"]
-difficulties = ["easy", "med_easy", "med_hard", "hard"]
-modes = [4, 16, 64]
+models = ["mlp"] #["mlp", "lstm", "cnn", "vae"]
+difficulties = ["hard"] #["easy", "med_easy", "med_hard", "hard"]
+modes = [64] #[4, 16, 64]
 seed = 1 
 
 files = []
@@ -35,4 +38,3 @@ data = np.load(trouble_file)
 # print data
 print(data["outputs"].shape)
 print(data["outputs"])
-breakpoint()

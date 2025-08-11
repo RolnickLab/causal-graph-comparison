@@ -1,12 +1,40 @@
+# === run chris
 seed=1
-for modes in 4 16 64; do
-    for model in lstm cnn vae picabu; do
-        for difficulty in easy med_easy med_hard hard; do
-            sbatch --output=slurm/${model}_output_${difficulty}_${modes}_${seed}.txt --error=slurm/${model}_error_${difficulty}_${modes}_${seed}.txt --time=12:00:00 00-run_main.sh --difficulty ${difficulty} --num_modes ${modes} --seed ${seed} --model ${model}
+for mode in 4 16 64; do
+    for model in mlp lstm cnn picabu vae; do
+        for difficulty in easy med_easy; do
+            if [[ $model != vae ]]; then
+                if [[ $mode -eq 4 ]]; then
+                    runtime=12:00:00
+                elif [[ $mode -eq 16 ]]; then
+                    runtime=12:00:00
+                elif [[ $mode -eq 64 ]]; then
+                    runtime=30:00:00
+                fi
+            elif [[ $model = vae ]]; then
+                if [[ $mode -eq 4 ]]; then
+                    runtime=20:00:00
+                elif [[ $mode -eq 16 ]]; then
+                    runtime=26:00:00
+                elif [[ $mode -eq 64 ]]; then
+                    runtime=70:00:00
+                fi
+            fi
+            echo "model: ${model} difficulty: ${difficulty} mode: ${mode} seed: ${seed} runtime: ${runtime}"
+            sbatch --job-name=${model}-${mode}-${difficulty} --output=slurm/${model}_output_${difficulty}_${mode}_${seed}.txt --error=slurm/${model}_error_${difficulty}_${mode}_${seed}.txt --time=${runtime} 00-run_main.sh --difficulty ${difficulty} --num_modes ${mode} --seed ${seed} --model ${model}
         done
     done
 done
 
+# # === run flo
+# seed=1
+# for modes in 4 16 64; do
+#     for model in mlp lstm cnn vae picabu; do
+#         for difficulty in med_hard hard; do
+#             sbatch --output=slurm/${model}_output_${difficulty}_${modes}_${seed}.txt --error=slurm/${model}_error_${difficulty}_${modes}_${seed}.txt --time=12:00:00 00-run_main.sh --difficulty ${difficulty} --num_modes ${modes} --seed ${seed} --model ${model}
+#         done
+#     done
+# done
 
 
 # ==== MLP ====
@@ -150,10 +178,10 @@ done
 # # sbatch 00-run_main.sh --difficulty hard --num_modes 64 --seed 99 --model cnn
 
 # # ==== VAE ====
-sbatch --output=slurm/vae_output_e4.txt --error=slurm/vae_error_e4.txt 00-run_main.sh --difficulty easy --num_modes 4 --seed 1 --model vae
-sbatch --output=slurm/vae_output_me4.txt --error=slurm/vae_error_me4.txt 00-run_main.sh --difficulty med_easy --num_modes 4 --seed 1 --model vae
-sbatch --output=slurm/vae_output_mh4.txt --error=slurm/vae_error_mh4.txt 00-run_main.sh --difficulty med_hard --num_modes 4 --seed 1 --model vae
-sbatch --output=slurm/vae_output_h4.txt --error=slurm/vae_error_h4.txt 00-run_main.sh --difficulty hard --num_modes 4 --seed 1 --model vae
+# sbatch --output=slurm/vae_output_e4.txt --error=slurm/vae_error_e4.txt 00-run_main.sh --difficulty easy --num_modes 4 --seed 1 --model vae
+# sbatch --output=slurm/vae_output_me4.txt --error=slurm/vae_error_me4.txt 00-run_main.sh --difficulty med_easy --num_modes 4 --seed 1 --model vae
+# sbatch --output=slurm/vae_output_mh4.txt --error=slurm/vae_error_mh4.txt 00-run_main.sh --difficulty med_hard --num_modes 4 --seed 1 --model vae
+# sbatch --output=slurm/vae_output_h4.txt --error=slurm/vae_error_h4.txt 00-run_main.sh --difficulty hard --num_modes 4 --seed 1 --model vae
 
 # sbatch --output=slurm/vae_output_e16.txt --error=slurm/vae_error_e16.txt 00-run_main.sh --difficulty easy --num_modes 16 --seed 1 --model vae
 # sbatch --output=slurm/vae_output_me16.txt --error=slurm/vae_error_me16.txt 00-run_main.sh --difficulty med_easy --num_modes 16 --seed 1 --model vae
