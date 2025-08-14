@@ -2,12 +2,15 @@ import os
 from pathlib import Path
 import pickle
 import shutil
+import json
+from pathlib import Path
 
 from climatem.data_loader.causal_datamodule import CausalClimateDataModule
 from causal_graph_comparison import CONFIGS_DIR
 
 
-def generate_savar_data(experiment_params, data_params, savar_params, train_params, reload_data=True):
+
+def generate_savar_data(experiment_params, data_params, gt_params, train_params, model_params, optim_params, plot_params, savar_params, rollout_params, reload_data=True):
 
     # Create data directory if it doesn't exist
     os.makedirs(data_params.data_dir, exist_ok=True)
@@ -24,6 +27,9 @@ def generate_savar_data(experiment_params, data_params, savar_params, train_para
 
         # Create SAVAR datamodule
         datamodule = CausalClimateDataModule(
+            spatial_resolution=savar_params.comp_size,
+            dimensions=experiment_params.d_x,
+            num_modes=experiment_params.d_z,
             tau=experiment_params.tau,
             future_timesteps=experiment_params.future_timesteps,
             num_months_aggregated=data_params.num_months_aggregated,
@@ -73,7 +79,22 @@ def generate_savar_data(experiment_params, data_params, savar_params, train_para
 
         # save config file to data directory
         savar_name = datamodule.train_val_input4mips.savar_name
-        shutil.copy2(CONFIGS_DIR / "savar-picabu.json", os.path.join(data_params.data_dir, f"{savar_name}_config.json"))
+        savar_config = {
+            "experiment_params": experiment_params.__dict__,
+            "data_params": data_params.__dict__,
+            "gt_params": gt_params.__dict__,
+            "train_params": train_params.__dict__,
+            "model_params": model_params.__dict__,
+            "optim_params": optim_params.__dict__,
+            "plot_params": plot_params.__dict__,
+            "savar_params": savar_params.__dict__,
+            "rollout_params": rollout_params.__dict__,
+            "savar_name": savar_name,
+        }
+
+        config_path = Path(data_params.data_dir) / f"{savar_name}_config.json"
+        with open(config_path, "w") as f:
+            json.dump(savar_config, f, indent=4)
 
         # save datamodule to pickle
         with open(pickle_path, "wb") as f:

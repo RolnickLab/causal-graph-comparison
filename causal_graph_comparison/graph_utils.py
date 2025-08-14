@@ -50,7 +50,7 @@ def permute_graph(datamodule, experiment_name):
     # Plot learned graph vs savar gt before permutation
     plotter.plot_adjacency_matrix(
         mat1=learned_graph,
-        mat2=savar_gt[::-1],
+        mat2=savar_gt,
         path=results.results_path,
         name_suffix="transition",
         no_gt=False,
@@ -70,7 +70,7 @@ def permute_graph(datamodule, experiment_name):
     # Plot permuted graph vs savar gt after permutation
     plotter.plot_adjacency_matrix(
         mat1=permuted_temporal_matrix,
-        mat2=savar_gt[::-1],
+        mat2=savar_gt,
         path=results.results_path,
         name_suffix="transition_permuted",
         no_gt=False,

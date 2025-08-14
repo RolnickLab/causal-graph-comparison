@@ -1,6 +1,6 @@
 import os
 import warnings
-from climatem.config import dataParams, expParams, gtParams, trainParams, modelParams, optimParams, plotParams, savarParams
+from climatem.config import dataParams, expParams, gtParams, rolloutParams, trainParams, modelParams, optimParams, plotParams, savarParams
 from causal_graph_comparison import CONFIGS_DIR, SCRATCH_DIR, PROJECT_ROOT
 from causal_graph_comparison.utils import get_json_config
 
@@ -86,6 +86,7 @@ def load_picabu_config():
     optim_params = optimParams(**params["optim_params"])
     plot_params = plotParams(**params["plot_params"])
     savar_params = savarParams(**params["savar_params"])
+    rollout_params = rolloutParams(**params["rollout_params"])
 
     # Handle SAVAR-specific parameters
     if "savar" in data_params.in_var_ids:
@@ -111,7 +112,7 @@ def load_picabu_config():
     # print(plot_params.__dict__)
     # print(savar_params.__dict__)
 
-    return experiment_params, data_params, gt_params, train_params, model_params, optim_params, plot_params, savar_params
+    return experiment_params, data_params, gt_params, train_params, model_params, optim_params, plot_params, savar_params, rollout_params
 
 if __name__ == "__main__":
     load_picabu_config()

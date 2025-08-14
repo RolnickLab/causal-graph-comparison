@@ -8,7 +8,6 @@ APP_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_ROOT.parent
 
 # The rest are paths for the different folders of the repository
-DATA_DIR = PROJECT_ROOT / "data"
 CONFIGS_DIR = PROJECT_ROOT / "configs"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
@@ -24,3 +23,4 @@ else:
 
 MODELS_DIR = SCRATCH_DIR / "cgc" / "models"
 OUTPUTS_DIR = SCRATCH_DIR / "cgc" / "outputs"
+DATA_DIR = SCRATCH_DIR / "data" / "SAVAR_DATA_TEST"

@@ -8,6 +8,7 @@ from math import sqrt
 
 from causal_graph_comparison import *  # Directory paths
 from causal_graph_comparison.causal_discovery import causal_discovery
+from causal_graph_comparison.interventions import intervention
 from causal_graph_comparison.picabu import train_picabu
 from causal_graph_comparison.picabu_helpers import load_picabu_config
 from causal_graph_comparison.savar import generate_savar_data
@@ -76,6 +77,7 @@ wandb_dict = {
     optim_params,
     plot_params,
     savar_params,
+    rollout_params,
 ) = load_picabu_config()
 
 # load model params from config file
@@ -121,7 +123,7 @@ elif args.num_modes == 64:
 device = torch.device("cuda" if (torch.cuda.is_available() and experiment_params.gpu) else "cpu")
 
 # generate savar data
-datamodule = generate_savar_data(experiment_params, data_params, savar_params, train_params, reload_data=True)
+datamodule = generate_savar_data(experiment_params, data_params, gt_params, train_params, picabu_params, optim_params, plot_params, savar_params, rollout_params, reload_data=True)
 
 # print datamodule
 print("datamodule.savar_gt_adj shape: ", datamodule.savar_gt_adj.shape)
@@ -378,6 +380,13 @@ elif args.model == "mlp":
         mlp_model = torch.load(best_mlp_path, map_location=device, weights_only=False)
     else:
         mlp_model = torch.load(mlp_path, map_location=device, weights_only=False)
+    
+     #2.10) Run interventions
+
+    print(f"Running intervention on {args.model}: generating next step + targets")
+
+    mlp_intervention = intervention(model=mlp_model, experiment_name=experiment_name, test_loader=test_loader, datamodule=datamodule, device=device)
+    quit()
 
     # === Causal discovery ===
 
@@ -405,8 +414,10 @@ elif args.model == "mlp":
     )
 
     # 2.5) Binarize causal discovery learning graph
-    mlp_flat_cd_graph = binarize_array(mlp_flat_cd_graph)
-    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-cd.npz", array=mlp_flat_cd_graph)
+    mlp_flat_cd_graph_binary = binarize_array(mlp_flat_cd_graph)
+    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-cd.npz", array=mlp_flat_cd_graph_binary)
+    print("Shape of mlp_flat_cd_graph_binary: ", mlp_flat_cd_graph_binary.shape)
+
 
     # === Causal representation learning ===
 
@@ -424,8 +435,9 @@ elif args.model == "mlp":
     )
 
     # 2.9) Binarize causal representation learning graphs
-    mlp_flat_crl_graph = binarize_array(mlp_flat_crl_graph)
-    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-crl.npz", array=mlp_flat_crl_graph)
+    mlp_flat_crl_graph_binary = binarize_array(mlp_flat_crl_graph)
+    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-crl.npz", array=mlp_flat_crl_graph_binary)
+    print("Shape of mlp_flat_crl_graph_binary: ", mlp_flat_crl_graph_binary.shape)
 
     # ====== LSTM ======
 elif args.model == "lstm":

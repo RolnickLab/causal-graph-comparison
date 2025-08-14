@@ -54,18 +54,18 @@ print("\nInitial shapes:")
 print("Input shape:", x.shape)
 print("Target shape:", y.shape)
 
-for i in range(5):
-    plt.subplot(2,5,i+1)
-    img = x[i,0,:].reshape(40,40)
-    plt.imshow(img)
-    plt.colorbar()
+# for i in range(5):
+#     plt.subplot(2,5,i+1)
+#     img = x[i,0,:].reshape(20,20)
+#     plt.imshow(img)
+#     plt.colorbar()
 # plt.show()
 
-plt.subplot(2,5,i+1+5)
-img = y[0,0,:].reshape(40,40)
-plt.imshow(img)
-plt.colorbar()
-plt.show()
+# plt.subplot(2,5,i+1+5)
+# img = y[0,0,:].reshape(20,20)
+# plt.imshow(img)
+# plt.colorbar()
+# plt.show()
 
 # Print dataset sizes
 print(f"\nDataset sizes:")
@@ -86,24 +86,25 @@ print(f"Test dataloader size: {len(test_dataloader)}")
 print(f"Test train dataloader size: {len(test_train_dataloader)}")
 
 # Inspect a batch
-for batch in test_dataloader:
-    x, y = batch
-    print("TEST DATALOADER")
-    print("\nBatch shapes:")
-    print("Input shape:", x.shape)
-    print("Target shape:", y.shape)
-    break
+# for batch in test_dataloader:
+#     x, y = batch
+#     print("TEST DATALOADER")
+#     print("\nBatch shapes:")
+#     print("Input shape:", x.shape)
+#     print("Target shape:", y.shape)
+#     break
 
-print("--------------------------------")
+# print("--------------------------------")
 
-for batch in val_loader:
-    x, y = batch
-    print("VAL DATALOADER")
-    print("\nBatch shapes:")
-    print("Input shape:", x.shape)
-    print("Target shape:", y.shape)
-    break
+# for batch in val_loader:
+#     x, y = batch
+#     print("VAL DATALOADER")
+#     print("\nBatch shapes:")
+#     print("Input shape:", x.shape)
+#     print("Target shape:", y.shape)
+#     break
 
+x, y = next(iter(train_loader))
 
 # Print data stats
 print("\nData statistics:")
@@ -153,19 +154,19 @@ print("\nValues being plotted:")
 print("Input values:", input_values)
 print("Target values:", target_values)
 
-plt.figure(figsize=(12, 6))
-plt.plot(timesteps, input_values, 'b-o', label='Last timestep of input sequence')
-plt.plot(timesteps, target_values, 'r--s', label='Target (next timestep)')
-plt.title('Temporal Sequence at Center Point of Grid')
-plt.xlabel('Sample Index (each sample contains 5 timesteps)')
-plt.ylabel('Value at center point (40x40 grid flattened)')
-plt.legend()
-plt.grid(True)
+# plt.figure(figsize=(12, 6))
+# plt.plot(timesteps, input_values, 'b-o', label='Last timestep of input sequence')
+# plt.plot(timesteps, target_values, 'r--s', label='Target (next timestep)')
+# plt.title('Temporal Sequence at Center Point of Grid')
+# plt.xlabel('Sample Index (each sample contains 5 timesteps)')
+# plt.ylabel('Value at center point (40x40 grid flattened)')
+# plt.legend()
+# plt.grid(True)
 
-plot_path = output_dir / 'temporal_sequence.png'
-plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-print(f"\nPlot saved to: {plot_path}")
-plt.close()
+# plot_path = output_dir / 'temporal_sequence.png'
+# plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+# print(f"\nPlot saved to: {plot_path}")
+# plt.close()
 
 # Check if target is indeed the next timestep
 print("\nVerifying target is next timestep:")
@@ -214,19 +215,19 @@ print(f"  Max: {all_targets.max().item():.4f}")
 print(f"  Range: {all_targets.max().item() - all_targets.min().item():.4f}")
 
 # Plot distribution of values
-plt.figure(figsize=(12, 6))
-plt.hist(all_inputs.flatten().numpy(), bins=50, alpha=0.5, label='Input')
-plt.hist(all_targets.flatten().numpy(), bins=50, alpha=0.5, label='Target')
-plt.title('Distribution of Input and Target Values')
-plt.xlabel('Value')
-plt.ylabel('Frequency')
-plt.legend()
-plt.grid(True)
+# plt.figure(figsize=(12, 6))
+# plt.hist(all_inputs.flatten().numpy(), bins=50, alpha=0.5, label='Input')
+# plt.hist(all_targets.flatten().numpy(), bins=50, alpha=0.5, label='Target')
+# plt.title('Distribution of Input and Target Values')
+# plt.xlabel('Value')
+# plt.ylabel('Frequency')
+# plt.legend()
+# plt.grid(True)
 
-plot_path = output_dir / 'value_distribution.png'
-plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-print(f"\nDistribution plot saved to: {plot_path}")
-plt.close()
+# plot_path = output_dir / 'value_distribution.png'
+# plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+# print(f"\nDistribution plot saved to: {plot_path}")
+# plt.close()
 
 # Check if data appears to be normalized
 print("\nNormalization Check:")
@@ -241,8 +242,8 @@ input_std = all_inputs.std().item()
 input_range = all_inputs.max().item() - all_inputs.min().item()
 
 print("\nInput data normalization assessment:")
-print(f"Mean is {'close to 0' if abs(input_mean) < 0.1 else 'not close to 0'}")
-print(f"Std is {'close to 1' if 0.8 < input_std < 1.2 else 'not close to 1'}")
-print(f"Range is {'typical for normalized data' if input_range < 10 else 'larger than expected for normalized data'}")
+print(f"Mean is {'close to 0' if abs(input_mean) < 0.1 else 'not close to 0'}: {input_mean}")
+print(f"Std is {'close to 1' if 0.8 < input_std < 1.2 else 'not close to 1'}: {input_std}")
+print(f"Range is {'typical for normalized data' if input_range < 10 else 'larger than expected for normalized data'}: {input_range}")
 
 

@@ -18,7 +18,7 @@
     "data_params": {
         "data_dir": "$SCRATCH/data/SAVAR_DATA_TEST", 
         "climateset_data": "$SCRATCH/data/icml_processed_data/picontrol/24_ni", 
-        "reload_climate_set_data": true,
+        "reload_climate_set_data": false,
         "icosahedral_coordinates_path": "$CLIMATEMDIR/mappings/vertex_lonlat_mapping.npy",
         "in_var_ids": ["savar"],
         "out_var_ids": ["savar"],
@@ -136,7 +136,7 @@
         "comp_size": 10,
         "noise_val": 0.2,
         "n_per_col": 2,
-        "difficulty": "med_easy",
+        "difficulty": "easy",
         "seasonality": false,
         "overlap": false,
         "is_forced": false,
