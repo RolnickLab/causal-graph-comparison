@@ -29,64 +29,86 @@ def create_intervened_nextstep(mode_weights, datamodule, input_data, device, int
     This is to keep the savar structure similar to the one of `self.data_field`
     """
 
-    print(" ======== IN INTERVENED NEXTSTEP ======== ")
+    # print(" ======== IN INTERVENED NEXTSTEP ======== ")
     mode_weights = datamodule.savar_gt_modes_weights
     links_coeffs = datamodule.savar_links_coeffs
     gt_adj = dict_to_matrix(links_coeffs)
     tau_max = datamodule.train_val_input4mips.tau
     num_modes = datamodule.num_modes
-    spatial_resolution = datamodule.dimensions
+    spatial_resolution = datamodule.spatial_resolution
+    dimensions = datamodule.dimensions
 
-    print(f"Size of input_data: {input_data.shape}")
+    # print(f"Size of input_data: {input_data.shape}")
 
-    print("DBG links_coeffs: ", links_coeffs)
-    print("DBG mode_weights shape: ", mode_weights.shape)
-    print("DBG gt_adj shape: ", gt_adj.shape)
-    print("DBG tau_max: ", tau_max)
-    print("DBG num_modes: ", num_modes)
-    print("DBG spatial_resolution: ", spatial_resolution)
+    # print("DBG links_coeffs: ", links_coeffs)
+    # print("DBG mode_weights shape: ", mode_weights.shape)
+    # print("DBG gt_adj shape: ", gt_adj.shape)
 
     weights = deepcopy(mode_weights.reshape(num_modes, -1))
-    print("DBG new reshapedweights shape: ", weights.shape)
+    # print("DBG new reshapedweights shape: ", weights.shape)
     # weights_inv = np.linalg.pinv(weights)
     weights_inv = torch.Tensor(np.linalg.pinv(weights)).to(device=device)
-    print("DBG weights_inv shape: ", weights_inv.shape)
+    # print("DBG weights_inv shape: ", weights_inv.shape)
     weights = torch.Tensor(weights).to(device=device)
-    print("DBG weights shape: ", weights.shape)
+    # print("DBG weights shape: ", weights.shape)
 
     # phi = dict_to_matrix(self.links_coeffs)
     phi = torch.Tensor(gt_adj).to(device=device)
-    print("DBG phi shape: ", phi.shape)
+    # print("DBG phi shape: ", phi.shape)
     # data_field = deepcopy(self.data_field)
-    next_step = torch.zeros(spatial_resolution).to(device=device)
-    print("DBG next_step shape: ", next_step.shape)
+    next_step = torch.zeros(dimensions).to(device=device)
+    # print("DBG next_step shape: ", next_step.shape)
 
-    print("DBG: input_data: ", input_data[intervened_t, ...])
-    print("===")
+    save_input_data = deepcopy(input_data)
 
+    # print(f"Applying intervention for mode: {intervened_mode} at time: {intervened_t} with value: {intervention_value}")
+
+    quadrant_row = intervened_mode // int(math.sqrt(num_modes))
+    quadrant_col = intervened_mode % int(math.sqrt(num_modes))
+
+    start_row = quadrant_row * spatial_resolution
+    start_col = quadrant_col * spatial_resolution
+
+    change_indices = []
+
+    for i in range(spatial_resolution):
+        for j in range(spatial_resolution):
+            change_idx = (start_row + i) * int(math.sqrt(dimensions)) + (start_col + j)
+            change_indices.append(change_idx)
+    
     #perform intervention
-    input_data[intervened_t, 0, intervened_mode*spatial_resolution:(intervened_mode+1)*spatial_resolution] += intervention_value
-    print("DBG intervened_data shape: ", input_data.shape)
-    print("DBG intervened_data: ", input_data[intervened_t, ...])
+    input_data[intervened_t, 0, change_indices] += intervention_value
+    # print("DBG intervened_data shape: ", input_data.shape)
+    # print("DBG changed indices: ", change_indices)
+    # print("DBG saved_input_data: ", save_input_data[intervened_t, 0, change_indices])
+    # print("===")
+    # print("DBG intervened_data: ", input_data[intervened_t, 0, change_indices])
 
-    print("DBG input_data device: ", input_data.device)
-    print("DBG weights_inv device: ", weights_inv.device)
-    print("DBG phi device: ", phi.device)
-    print("DBG weights device: ", weights.device)
+    # print("DBG input_data device: ", input_data.device)
+    # print("DBG weights_inv device: ", weights_inv.device)
+    # print("DBG phi device: ", phi.device)
+    # print("DBG weights device: ", weights.device)
 
     intervened_data = input_data.squeeze()
-    print("DBG intervened_data shape: ", intervened_data.shape)
+    # print("DBG intervened_data shape: ", intervened_data.shape)
+    # print("Is the data the same as the intervention data? ", np.array_equal(save_input_data, input_data))
 
     for i in range(tau_max):
-        print(f"DBG Phi at {i}: {phi[..., i]}")
-        print(f"DBG input_data[i, ...] shape: {input_data[i, ...].shape}")
+        # print("===")
+        # print(f"i: {i}")
+        # print(f"DBG weights_inv: {weights_inv.shape}")
+        # print(f"DBG phi[..., i]: {phi[..., i].shape}")
+        # print(f"DBG weights: {weights.shape}")
+        # print(f"DBG intervened_data[i, ...]: {intervened_data[i, ...].shape}")
+        # print(f"DBG: next_step shape: {next_step.shape}")
+        # print("===")
         next_step += weights_inv @ phi[..., i] @ weights @ intervened_data[i, ...]
 
     return next_step.cpu().numpy()
 
 def intervention(model, experiment_name, test_loader, datamodule, device):
 
-    print(" ======== IN INTERVENTION ======== ")
+    print(f"Applying interventions to {experiment_name}...")
 
     save_path = OUTPUTS_DIR / f"{experiment_name}-interventions.npz"
     print("DBG save_path: ", save_path)
@@ -104,6 +126,9 @@ def intervention(model, experiment_name, test_loader, datamodule, device):
     data = data.to(device)
     target = target.to(device)
 
+    initial_data = np.array(data.cpu().numpy())
+    initial_targets = np.array(target.cpu().numpy())
+
     intervened_modes = np.arange(datamodule.num_modes)
     intervened_ts = np.arange(0, datamodule.train_val_input4mips.tau)
 
@@ -115,48 +140,30 @@ def intervention(model, experiment_name, test_loader, datamodule, device):
 
     model.eval()
 
-    i = 0
-
     with torch.no_grad():
 
-        print("========= IN TORCH NO GRAD ======== ")
-
         print("Creating intervention samples...")
-        print(f"DBG batch_size: {batch_size}")
 
         intervention_samples = create_intervention_samples(batch_size=batch_size, intervened_modes=intervened_modes, intervened_ts=intervened_ts, intervention_values=intervention_values)
 
-        # get first batch
-        print("DBG i: ", i)
-        print("DBG data shape: ", data.shape)
-        print("DBG target shape: ", target.shape)
-        print("DBG intervention_samples[i]: ", intervention_samples[i])
-        print("DBG: range of data: ", data.min(), data.max())
-        print("DBG: mean of data: ", data.mean())
-        print("DBG: std of data: ", data.std())
+        # print("DBG data shape: ", data.shape)
+        # print("DBG target shape: ", target.shape)
+        # print("DBG: range of data: ", data.min(), data.max())
+        # print("DBG: mean of data: ", data.mean())
+        # print("DBG: std of data: ", data.std())
         # save data before intervention
-        initial_data_list.append(data.squeeze().cpu().numpy())
 
-        next_steps = np.zeros((batch_size, 1, datamodule.future_timesteps, datamodule.dimensions))
+        intervened_targets = np.zeros((batch_size, datamodule.future_timesteps, datamodule.dimensions))
 
         # modify data and get next step
         for i in range(batch_size):
             intervened_mode, intervened_t, intervention_value = intervention_samples[i]
 
-            print("DBG intervened_mode: ", intervened_mode)
-            print("DBG intervened_t: ", intervened_t)
-            print("DBG intervention_value: ", intervention_value)
-            next_steps[i, 0, 0, :] = create_intervened_nextstep(mode_weights=datamodule.savar_gt_modes_weights, datamodule=datamodule, input_data=data[i], device=device, intervened_mode=intervened_mode, intervention_value=intervention_value, intervened_t=intervened_t)
-
-        print("DBG next_steps shape: ", next_steps.shape)
-        print("DBG next_steps: ", next_steps[0])
-        print("====")
-        print("DBG target: ", target[0])
-
-        i += 1
+            # print("DBG intervened_mode: ", intervened_mode)
+            # print("DBG intervened_t: ", intervened_t)
+            # print("DBG intervention_value: ", intervention_value)
+            intervened_targets[i, 0, :] = create_intervened_nextstep(mode_weights=datamodule.savar_gt_modes_weights, datamodule=datamodule, input_data=data[i], device=device, intervened_mode=intervened_mode, intervention_value=intervention_value, intervened_t=intervened_t)
         
-        # save intervened targets
-        intervened_targets_list.append(next_steps)
         # save intervened input data
         for x in data:
             data_list.append(x.squeeze().cpu().numpy())
@@ -178,33 +185,30 @@ def intervention(model, experiment_name, test_loader, datamodule, device):
             output = model(data)
 
         output_list.append(output.squeeze().cpu().numpy())
-        data, target = next(iter(test_loader))
-
-    print("DBG output_list: ", output_list[0])
-    print("DBG length of output_list: ", len(output_list))
-    for i in range(len(output_list)):
-        print(f"DBG output_list[{i}].shape: ", output_list[i].shape)
 
     # Convert lists to arrays
-    initial_data_array = np.array(initial_data_list)
-    data_array = np.array(data_list)
-    target_array = np.array(intervened_targets_list)
-    output_array = np.array(output_list)
+    intervened_data = np.array(data_list)
+    intervened_outputs = np.array(output_list)
 
     # switch order of dimensions to match n_samples, rollouts, dimensions
-    target_array = np.moveaxis(target_array, 1, 0)
-    output_array = np.moveaxis(output_array, 1, 0)
+    intervened_outputs = np.moveaxis(intervened_outputs, 1, 0)
 
-    print("Initial data array shape: ", initial_data_array.shape) # inputs = n_samples, tau, dimensions
-    print("Intervened data array shape: ", data_array.shape) # inputs = n_samples, tau, dimensions
-    print("Target array shape: ", target_array.shape) # targets = n_samples, rollouts, dimensions
-    print("Output array shape: ", output_array.shape) # outputs = n_samples, rollouts, dimensions
+    initial_data = initial_data.squeeze()
+    initial_targets = initial_targets.squeeze(axis=1)
 
-    print(f"Saving rollouts to {save_path}")
+    print("Initial data array shape: ", initial_data.shape) # inputs = n_samples, tau, dimensions
+    print("Initial targets array shape: ", initial_targets.shape) # targets = n_samples, tau, dimensions
+    print("Intervened data array shape: ", intervened_data.shape) # inputs = n_samples, tau, dimensions
+    print("Intervened Target array shape: ", intervened_targets.shape) # targets = n_samples, rollouts, dimensions
+    print("Output array shape: ", intervened_outputs.shape) # outputs = n_samples, rollouts, dimensions
+
+    print(f"Saving interventions to {save_path}")
     np.savez(
         save_path,
-        inputs=data_array,
-        targets=target_array,
-        outputs=output_array,
+        initial_inputs=initial_data,
+        initial_targets=initial_targets,
+        intervened_inputs=intervened_data,
+        intervened_targets=intervened_targets,
+        intervened_outputs=intervened_outputs,
     )
     return save_path

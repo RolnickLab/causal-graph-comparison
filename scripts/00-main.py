@@ -385,7 +385,7 @@ elif args.model == "mlp":
 
     print(f"Running intervention on {args.model}: generating next step + targets")
 
-    mlp_intervention = intervention(model=mlp_model, experiment_name=experiment_name, test_loader=test_loader, datamodule=datamodule, device=device)
+    mlp_intervention = intervention(model=mlp_model, experiment_name=experiment_name, test_loader=inference_loader, datamodule=datamodule, device=device)
     quit()
 
     # === Causal discovery ===
