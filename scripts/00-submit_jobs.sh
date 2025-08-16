@@ -1,31 +1,32 @@
 # === run chris
 seed=1
-for mode in 64; do
-    for model in vae; do
+for mode in 4 16 64; do
+    for model in mlp cnn lstm vae picabu; do
         for difficulty in easy med_easy med_hard hard; do
-            if [[ $model != vae ]]; then
-                if [[ $mode -eq 4 ]]; then
-                    runtime=12:00:00
-                elif [[ $mode -eq 16 ]]; then
-                    runtime=12:00:00
-                elif [[ $mode -eq 64 ]]; then
-                    runtime=30:00:00
-                fi
-            elif [[ $model = vae ]]; then
-                if [[ $mode -eq 4 ]]; then
-                    runtime=20:00:00
-                elif [[ $mode -eq 16 ]]; then
-                    runtime=26:00:00
-                elif [[ $mode -eq 64 ]]; then
-                    runtime=50:00:00
-                fi
-            fi
+            # if [[ $model != vae ]]; then
+            #     if [[ $mode -eq 4 ]]; then
+            #         runtime=12:00:00
+            #     elif [[ $mode -eq 16 ]]; then
+            #         runtime=12:00:00
+            #     elif [[ $mode -eq 64 ]]; then
+            #         runtime=30:00:00
+            #     fi
+            # elif [[ $model = vae ]]; then
+            #     if [[ $mode -eq 4 ]]; then
+            #         runtime=20:00:00
+            #     elif [[ $mode -eq 16 ]]; then
+            #         runtime=26:00:00
+            #     elif [[ $mode -eq 64 ]]; then
+            #         runtime=50:00:00
+            #     fi
+            # fi
+            runtime=00:15:00
             echo "model: ${model} difficulty: ${difficulty} mode: ${mode} seed: ${seed} runtime: ${runtime}"
             sbatch --job-name=${model}-${mode}-${difficulty} --output=slurm/${model}_output_${difficulty}_${mode}_${seed}.txt --error=slurm/${model}_error_${difficulty}_${mode}_${seed}.txt --time=${runtime} 00-run_main.sh --difficulty ${difficulty} --num_modes ${mode} --seed ${seed} --model ${model}
         done
     done
 done
-
+        
 # ==== MLP ====
 # sbatch --output=slurm/mlp_output_e4.txt --error=slurm/mlp_error_e4.txt 00-run_main.sh --difficulty easy --num_modes 4 --seed 1 --model mlp
 # sbatch --output=slurm/mlp_output_me4.txt --error=slurm/mlp_error_me4.txt 00-run_main.sh --difficulty med_easy --num_modes 4 --seed 1 --model mlp

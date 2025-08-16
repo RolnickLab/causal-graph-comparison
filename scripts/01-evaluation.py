@@ -1,4 +1,3 @@
-import argparse
 from climatem.synthetic_data.graph_evaluation_ilija import extract_adjacency_matrix
 import torch
 import numpy as np
@@ -9,8 +8,11 @@ from causal_graph_comparison import *
 from causal_graph_comparison.psd import power_spectral_density
 from climatem.model.metrics import *
 
-seed = 1
-dataset = "savar"
+#TODO flatten gt_adj
+#TODO compare cd and crl on savar
+#TODO why is cd graph 64x64 for vae instead of 80x80
+#TODO run vae main 4 hard <-- make sure crl is saved with proper shape (6, 4, 4)
+#TODO run vae 64 hard picabu training
 
 
 def eval(f, model, num_modes, difficulty, seed):
@@ -23,13 +25,13 @@ def eval(f, model, num_modes, difficulty, seed):
 
     data_name = f"modes_{num_modes}-diff_{difficulty}-seed_{seed}"
     experiment_name = f"{model}-{data_name}"
-    gt_name = f"{dataset}-{data_name}"
+    savar_name = f"{dataset}-{data_name}"
 
-    crl_graph_path = OUTPUTS_DIR / f"{experiment_name}-flat_graph_binary-crl.npz"
-    cd_graph_path = OUTPUTS_DIR / f"{experiment_name}-flat_graph_binary-cd.npz"
+    crl_graph_path = OUTPUTS_DIR / f"{experiment_name}-flat_graph-binary-crl.npz"
+    cd_graph_path = OUTPUTS_DIR / f"{experiment_name}-flat_graph-binary-cd.npz"
 
-    gt_crl_graph_path = OUTPUTS_DIR / f"{gt_name}-flat_graph_binary-crl.npz"
-    gt_cd_graph_path = OUTPUTS_DIR / f"{gt_name}-flat_graph_binary-cd.npz"
+    savar_crl_graph_path = OUTPUTS_DIR / f"{savar_name}-flat_graph-binary-crl.npz"
+    savar_cd_graph_path = OUTPUTS_DIR / f"{savar_name}-flat_graph-binary-cd.npz"
 
     next_step_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_1steps.npz"
     next_step_data = np.load(next_step_path)
@@ -39,15 +41,25 @@ def eval(f, model, num_modes, difficulty, seed):
 
     print("Loading data...")
 
-    crl_graph = np.load(crl_graph_path)["array"]
+    crl_graph = np.load(crl_graph_path)["graph"]
     cd_graph = np.load(cd_graph_path)["graph"]
-    gt_crl_graph = np.load(gt_crl_graph_path)["array"]
-    gt_cd_graph = np.load(gt_cd_graph_path)["graph"]
+    savar_crl_graph = np.load(savar_crl_graph_path)["graph"]
+    savar_cd_graph = np.load(savar_cd_graph_path)["graph"]
 
-    print("crl_graph.shape", crl_graph.shape)
-    print("cd_graph.shape", cd_graph.shape)
-    print("gt_crl_graph.shape", gt_crl_graph.shape)
-    print("gt_cd_graph.shape", gt_cd_graph.shape)
+    print("Causal representation learning:")
+    print("crl graph.shape", crl_graph.shape)
+    print("crl graph \n", crl_graph)
+    print("")
+    print("savar crl graph.shape", savar_crl_graph.shape)
+    print("savar crl graph \n", savar_crl_graph)
+    print("")
+    print("Causal discovery:")
+    print("cd graph.shape", cd_graph.shape)
+    print("cd graph \n", cd_graph)
+    print("")
+    print("savar cd graph.shape", savar_cd_graph.shape)
+    print("savar cd graph \n", savar_cd_graph)
+    print("")
 
     # 3) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
     # TODO: add scripts/11-graph-eval_mlp.py to pipeline
@@ -74,9 +86,11 @@ def eval(f, model, num_modes, difficulty, seed):
     print("gt_adj.shape", gt_adj.shape)
     print("gt_adj", gt_adj)
 
+    quit()
+
     # -- 4. Calculate metrics --
 
-    print("Structural & causal metrics on CRL...")
+    print("\nStructural & causal metrics on CRL...")
 
     crl_parent_aid = parent_aid(gt_crl_graph, crl_graph, edge_direction="from row to column")
     crl_oset_aid = oset_aid(gt_crl_graph, crl_graph, edge_direction="from row to column")
@@ -96,7 +110,7 @@ def eval(f, model, num_modes, difficulty, seed):
     print("crl_recall: ", crl_recall)
     print("-----------------------------")
 
-    print("Structural & causal metrics on CD...")
+    print("\nStructural & causal metrics on CD...")
 
     # cd
     cd_parent_aid = parent_aid(gt_cd_graph, cd_graph, edge_direction="from row to column")
@@ -121,7 +135,7 @@ def eval(f, model, num_modes, difficulty, seed):
 
     # 7) Run RMSE, statistical metrics on all trained models
 
-    print("Running statistical metrics on next step...")
+    print("\nRunning statistical metrics on next step...")
 
     next_step_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_1steps.npz"
     next_step = np.load(next_step_path)["outputs"]
@@ -177,48 +191,67 @@ def eval(f, model, num_modes, difficulty, seed):
 
     # 8) Apply power spectral density script from climatem module to: inference from models, targets
 
-    print("Running power spectral density on rollouts...")
+    print("\nRunning power spectral density on rollouts...")
 
     rollouts_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_20steps.npz"
     LSD, fft_coeffs_rollouts, fft_coeffs_savar = power_spectral_density(rollouts_path, num_modes)
 
     psd_coeff_list = ", ".join([str(coeff) for coeff in fft_coeffs_rollouts])
     psd_coeff_list_savar = ", ".join([str(coeff) for coeff in fft_coeffs_savar])
+
+    # 9) Interventions
+    print("\nAnalyzing interventions...")
+
+    intervention_path = f"{OUTPUTS_DIR}/{experiment_name}-interventions.npz"
+    intervention_data = np.load(intervention_path)
+    intervention_outputs = intervention_data["intervened_outputs"]
+    print("intervention_outputs", intervention_outputs.shape)
+
+    intervention_targets = intervention_data["intervened_targets"]
+    print("intervention_targets", intervention_targets.shape)
+
+    intervention_rmse = np.sqrt(np.mean((intervention_outputs - intervention_targets) ** 2))
+    print("intervention_rmse", intervention_rmse)
+
+    print("==============================\n")
+
+    # 9) Save results to csv
     outputs = [
-        model,
-        num_modes,
-        difficulty,
-        seed,
-        crl_parent_aid,
-        crl_oset_aid,
-        crl_ancestor_aid,
-        crl_sid,
-        crl_shd,
-        crl_f1,
-        crl_precision,
-        crl_recall,
-        cd_parent_aid,
-        cd_oset_aid,
-        cd_ancestor_aid,
-        cd_sid,
-        cd_shd,
-        cd_f1,
-        cd_precision,
-        cd_recall,
-        next_step_rmse,
-        next_step_mse,
-        next_step_mae,
-        next_step_r2,
-        next_step_variance,
-        next_step_targets_variance,
-        next_step_bias,
-        next_step_stdev,
-        next_step_targets_stdev,
-        next_step_range,
-        next_step_targets_range,
-        LSD,
-        psd_coeff_list,
-        psd_coeff_list_savar,
+        str(model),
+        str(num_modes),
+        str(difficulty),
+        str(seed),
+        str(crl_parent_aid),
+        str(crl_oset_aid),
+        str(crl_ancestor_aid),
+        str(crl_sid),
+        str(crl_shd),
+        str(crl_f1),
+        str(crl_precision),
+        str(crl_recall),
+        str(cd_parent_aid),
+        str(cd_oset_aid),
+        str(cd_ancestor_aid),
+        str(cd_sid),
+        str(cd_shd),
+        str(cd_f1),
+        str(cd_precision),
+        str(cd_recall),
+        str(next_step_rmse),
+        str(next_step_mse),
+        str(next_step_mae),
+        str(next_step_r2),
+        str(next_step_variance),
+        str(next_step_targets_variance),
+        str(next_step_bias),
+        str(next_step_stdev),
+        str(next_step_targets_stdev),
+        str(next_step_range),
+        str(next_step_targets_range),
+        str(intervention_rmse),
+        str(LSD),
+        str(psd_coeff_list),
+        str(psd_coeff_list_savar),
     ]
     f.write(", ".join(outputs) + "\n")
 
@@ -266,12 +299,17 @@ with open(results_csv_path, "a") as f:
     ]
     f.write(", ".join(header) + "\n")
 
-    for model in ["mlp", "savar", "vae", "lstm", "cnn"]:
-        for num_modes in [4, 16, 64]:
-            for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
+    seed = 1
+    dataset = "savar"
+
+    for model in ["vae"]:
+        for num_modes in [4]:
+            for difficulty in ["hard"]:
                 try:
+                    print(f"Evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
                     eval(f, model, num_modes, difficulty, seed)
                 except Exception as e:
-                    print(f"Error evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
+                    print(f"====== ERROR evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
                     print(e)
                     continue
+                print("======== End =========\n")

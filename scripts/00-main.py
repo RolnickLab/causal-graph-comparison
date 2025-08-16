@@ -221,14 +221,14 @@ if args.model == "picabu":
 
     # 0.2) Flatten temporal adjacency graphs: causal discovery
     gt_flat_cd_graph = flatten_temporal_adjacency_graph(
-        shape="parent_child_time", causal_method="cd", graph=savar_val_matrix, experiment_name=experiment_name
+        shape="parent_child_time", causal_method="cd", experiment_name=experiment_name
     )
 
     # 0.3) Binarize causal discovery & causal representation learning graphs
     gt_flat_cd_graph = binarize_array(gt_flat_cd_graph)
     np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-cd.npz",
-        array=gt_flat_cd_graph,
+        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-cd.npz",
+        graph=gt_flat_cd_graph,
     )
 
     # === Causal representation learning ===
@@ -250,8 +250,8 @@ if args.model == "picabu":
     # 0.7) Binarize causal discovery & causal representation learning graphs
     gt_flat_crl_graph = binarize_array(gt_flat_crl_graph)
     np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-crl.npz",
-        array=gt_flat_crl_graph,
+        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-crl.npz",
+        graph=gt_flat_crl_graph,
     )
 
 elif args.model == "vae":
@@ -328,36 +328,44 @@ elif args.model == "vae":
 
      # 1.7) Flatten temporal adjacency graphs: causal discovery
     vae_flat_cd_graph = flatten_temporal_adjacency_graph(
-        shape="parent_child_time", causal_method="cd", graph=vae_val_matrix, experiment_name=experiment_name
+        shape="parent_child_time", causal_method="cd", experiment_name=experiment_name
     )
 
     # 1.8) Binarize causal discovery & causal representation learning graphs
     vae_flat_cd_graph = binarize_array(vae_flat_cd_graph)
     np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-cd.npz",
-        array=vae_flat_cd_graph,
+        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-cd.npz",
+        graph=vae_flat_cd_graph,
     )
+
 
     # === Causal representation learning ===
 
-    # 1.4) Train picabu on vae --> saves scratch/results/SAVAR_DATA_TEST/picabu-vae-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
-    run = wandb.init(project="climatem", config={"model": "picabu-vae", **wandb_dict})
-    train_picabu(trained_model=vae_model, trained_model_params=trained_model_params, wandb=run, **picabu_train_args)
-    run.finish()
+    if args.num_modes != 64 and args.difficulty != "hard":
+        # 1.4) Train picabu on vae --> saves scratch/results/SAVAR_DATA_TEST/picabu-vae-modes_{modes}-diff_{difficulty}-seed_{seed}/plots/graphs.npy (graph)
+        run = wandb.init(project="climatem", config={"model": "picabu-vae", **wandb_dict})
+        train_picabu(trained_model=vae_model, trained_model_params=trained_model_params, wandb=run, **picabu_train_args)
+        run.finish()
 
-    # 1.5) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
-    vae_permuted_crl_graph = permute_graph(datamodule, experiment_name)
+        # 1.5) Permute learned adjacency graph outputs using ground truth so modes are in same order as in ground truth
+        vae_permuted_crl_graph = permute_graph(datamodule, experiment_name)
 
-    # 1.6) Flatten temporal adjacency graphs: causal representation learning
-    vae_flat_crl_graph = flatten_temporal_adjacency_graph(
-        shape="time_child_parent", causal_method="crl", graph=vae_permuted_crl_graph, experiment_name=experiment_name
-    )
+        # 1.6) Flatten temporal adjacency graphs: causal representation learning
+        vae_flat_crl_graph = flatten_temporal_adjacency_graph(
+            shape="time_child_parent", causal_method="crl", graph=vae_permuted_crl_graph, experiment_name=experiment_name
+        )
 
-    vae_flat_crl_graph = binarize_array(vae_flat_crl_graph)
-    np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-crl.npz",
-        array=vae_flat_crl_graph,
-    )
+        vae_flat_crl_graph = binarize_array(vae_flat_crl_graph)
+        np.savez(
+            f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-crl.npz",
+            graph=vae_flat_crl_graph,
+        )
+
+    #2.10) Run interventions
+
+    print(f"Running intervention on {args.model}: generating next step + targets")
+
+    vae_intervention_path = intervention(model=vae_model, experiment_name=experiment_name, test_loader=inference_loader, datamodule=datamodule, device=device)
 
 # ====== MLP ======
 elif args.model == "mlp":
@@ -380,13 +388,6 @@ elif args.model == "mlp":
         mlp_model = torch.load(best_mlp_path, map_location=device, weights_only=False)
     else:
         mlp_model = torch.load(mlp_path, map_location=device, weights_only=False)
-    
-     #2.10) Run interventions
-
-    print(f"Running intervention on {args.model}: generating next step + targets")
-
-    mlp_intervention = intervention(model=mlp_model, experiment_name=experiment_name, test_loader=inference_loader, datamodule=datamodule, device=device)
-    quit()
 
     # === Causal discovery ===
 
@@ -410,12 +411,12 @@ elif args.model == "mlp":
 
     # 2.4) Flatten temporal adjacency graphs: causal discovery
     mlp_flat_cd_graph = flatten_temporal_adjacency_graph(
-        shape="parent_child_time", causal_method="cd", graph=mlp_val_matrix, experiment_name=experiment_name
+        shape="parent_child_time", causal_method="cd", experiment_name=experiment_name
     )
 
     # 2.5) Binarize causal discovery learning graph
     mlp_flat_cd_graph_binary = binarize_array(mlp_flat_cd_graph)
-    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-cd.npz", array=mlp_flat_cd_graph_binary)
+    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-cd.npz", graph=mlp_flat_cd_graph_binary)
     print("Shape of mlp_flat_cd_graph_binary: ", mlp_flat_cd_graph_binary.shape)
 
 
@@ -436,8 +437,14 @@ elif args.model == "mlp":
 
     # 2.9) Binarize causal representation learning graphs
     mlp_flat_crl_graph_binary = binarize_array(mlp_flat_crl_graph)
-    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph_binary-crl.npz", array=mlp_flat_crl_graph_binary)
+    np.savez(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-crl.npz", graph=mlp_flat_crl_graph_binary)
     print("Shape of mlp_flat_crl_graph_binary: ", mlp_flat_crl_graph_binary.shape)
+
+    #2.10) Run interventions
+
+    print(f"Running intervention on {args.model}: generating next step + targets")
+
+    mlp_intervention_path = intervention(model=mlp_model, experiment_name=experiment_name, test_loader=inference_loader, datamodule=datamodule, device=device)
 
     # ====== LSTM ======
 elif args.model == "lstm":
@@ -480,14 +487,14 @@ elif args.model == "lstm":
 
     # 3.4) Flatten temporal adjacency graphs: causal discovery
     lstm_flat_cd_graph = flatten_temporal_adjacency_graph(
-        shape="parent_child_time", causal_method="cd", graph=lstm_val_matrix, experiment_name=experiment_name
+        shape="parent_child_time", causal_method="cd", experiment_name=experiment_name
     )
 
     # 3.5) Binarize causal discovery learning graph
     lstm_flat_cd_graph = binarize_array(lstm_flat_cd_graph)
     np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-cd.npz",
-        array=lstm_flat_cd_graph,
+        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-cd.npz",
+        graph=lstm_flat_cd_graph,
     )
 
     # === Causal representation learning ===
@@ -508,9 +515,16 @@ elif args.model == "lstm":
     # 3.9) Binarize causal discovery & causal representation learning graphs
     lstm_flat_crl_graph = binarize_array(lstm_flat_crl_graph)
     np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-crl.npz",
-        array=lstm_flat_crl_graph,
+        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-crl.npz",
+        graph=lstm_flat_crl_graph,
     )
+
+    #2.10) Run interventions
+
+    print(f"Running intervention on {args.model}: generating next step + targets")
+
+    lstm_intervention_path = intervention(model=lstm_model, experiment_name=experiment_name, test_loader=inference_loader, datamodule=datamodule, device=device)
+
 
 # ====== CNN ======
 elif args.model == "cnn":
@@ -563,14 +577,14 @@ elif args.model == "cnn":
 
     # 4.4) Flatten temporal adjacency graphs: causal discovery
     cnn_flat_cd_graph = flatten_temporal_adjacency_graph(
-        shape="parent_child_time", causal_method="cd", graph=cnn_val_matrix, experiment_name=experiment_name
+        shape="parent_child_time", causal_method="cd", experiment_name=experiment_name
     )
 
     # 4.5) Binarize causal discovery learned graph
     cnn_flat_cd_graph = binarize_array(cnn_flat_cd_graph)
     np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-cd.npz",
-        array=cnn_flat_cd_graph,
+        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-cd.npz",
+        graph=cnn_flat_cd_graph,
     )
 
     # === Causal representation learning ===
@@ -591,12 +605,13 @@ elif args.model == "cnn":
     # 4.9) Binarize causal discovery & causal representation learning graphs
     cnn_flat_crl_graph = binarize_array(cnn_flat_crl_graph)
     np.savez(
-        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-crl.npz",
-        array=cnn_flat_crl_graph,
+        f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-crl.npz",
+        graph=cnn_flat_crl_graph,
     )
 
-# --------- BASH
+    #2.10) Run interventions
 
-# 12 -16 cpus for 1 gpu a100
-# 120 - 256 gb ram
-# crank up num workers <--
+    print(f"Running intervention on {args.model}: generating next step + targets")
+
+    cnn_intervention_path = intervention(model=cnn_model, experiment_name=experiment_name, test_loader=inference_loader, datamodule=datamodule, device=device)
+

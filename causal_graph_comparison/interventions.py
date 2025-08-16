@@ -113,9 +113,9 @@ def intervention(model, experiment_name, test_loader, datamodule, device):
     save_path = OUTPUTS_DIR / f"{experiment_name}-interventions.npz"
     print("DBG save_path: ", save_path)
 
-    # if Path(save_path).exists():
-    #     print(f"Intervention already exist for {experiment_name}, skipping...")
-    #     return save_path
+    if Path(save_path).exists():
+        print(f"Intervention already exist for {experiment_name}, skipping...")
+        return save_path
 
     initial_data_list = []
     data_list = []
