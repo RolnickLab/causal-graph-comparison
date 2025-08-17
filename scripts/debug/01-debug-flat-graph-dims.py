@@ -12,14 +12,22 @@ difficulties = ["easy", "med_easy", "med_hard", "hard"]
 for model in models:
     for mode in modes:
         for difficulty in difficulties:
+            print("=============")
             experiment_name = f"{model}-modes_{mode}-diff_{difficulty}-seed_{seed}"
             print(f"Experiment name: {experiment_name}")
+            print(f"CD file path: {OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-cd.npz")
+            print(f"CRL file path: {OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-crl.npz")
 
             try:
                 cd_graph = np.load(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-cd.npz")["graph"]
                 crl_graph = np.load(f"{OUTPUTS_DIR}/{experiment_name}-flat_graph-binary-crl.npz")["graph"]
                 print(f"cd_graph.shape: {cd_graph.shape}")
+                print(f"cd_graph: {cd_graph}")
+                print("")
                 print(f"crl_graph.shape: {crl_graph.shape}")
+                print(f"crl_graph: {crl_graph}")
             except FileNotFoundError:
                 print(f"File not found for experiment: {experiment_name}")
                 continue
+            
+            print("=============")

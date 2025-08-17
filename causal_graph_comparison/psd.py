@@ -61,6 +61,7 @@ def power_spectral_density(rollouts_path, num_modes):
     print("fft_coeffs_rollouts_mean.shape: ", fft_coeffs_rollouts.shape)
     print("fft_coeffs_savar_mean.shape: ", fft_coeffs_savar.shape)
 
+    # LSD = least square difference not linear spectral density
     LSD = np.abs(fft_coeffs_rollouts - fft_coeffs_savar).mean()
     print("LSD: ", LSD)
 

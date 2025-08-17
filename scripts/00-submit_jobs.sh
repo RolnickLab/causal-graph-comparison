@@ -1,7 +1,7 @@
 # === run chris
 seed=1
 for mode in 4 16 64; do
-    for model in mlp cnn lstm vae picabu; do
+    for model in mlp cnn lstm vae; do
         for difficulty in easy med_easy med_hard hard; do
             # if [[ $model != vae ]]; then
             #     if [[ $mode -eq 4 ]]; then
@@ -20,13 +20,14 @@ for mode in 4 16 64; do
             #         runtime=50:00:00
             #     fi
             # fi
-            runtime=00:15:00
+            runtime=01:00:00
             echo "model: ${model} difficulty: ${difficulty} mode: ${mode} seed: ${seed} runtime: ${runtime}"
             sbatch --job-name=${model}-${mode}-${difficulty} --output=slurm/${model}_output_${difficulty}_${mode}_${seed}.txt --error=slurm/${model}_error_${difficulty}_${mode}_${seed}.txt --time=${runtime} 00-run_main.sh --difficulty ${difficulty} --num_modes ${mode} --seed ${seed} --model ${model}
         done
     done
 done
-        
+
+# sbatch --job-name=vae-64-hard --output=slurm/vae_output_hard_64_1.txt --error=slurm/vae_error_hard_64_1.txt --time=55:00:00 00-run_main.sh --difficulty hard --num_modes 64 --seed 1 --model vae
 # ==== MLP ====
 # sbatch --output=slurm/mlp_output_e4.txt --error=slurm/mlp_error_e4.txt 00-run_main.sh --difficulty easy --num_modes 4 --seed 1 --model mlp
 # sbatch --output=slurm/mlp_output_me4.txt --error=slurm/mlp_error_me4.txt 00-run_main.sh --difficulty med_easy --num_modes 4 --seed 1 --model mlp

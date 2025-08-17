@@ -1,3 +1,4 @@
+import pickle
 from climatem.synthetic_data.graph_evaluation_ilija import extract_adjacency_matrix
 import torch
 import numpy as np
@@ -10,7 +11,7 @@ from causal_graph_comparison.psd import power_spectral_density
 from climatem.model.metrics import *
 
 
-def eval_savar(f, model, num_modes, difficulty, seed):
+def eval_savar(model, num_modes, difficulty, seed):
     print(
         f"======= Evaluating CD/CRL onSAVAR data with difficulty: {difficulty}, num_modes: {num_modes}, seed: {seed} ======="
     )
@@ -88,7 +89,7 @@ def eval_savar(f, model, num_modes, difficulty, seed):
     # flatten gt_adj
     print("Flattening gt_adj...")
     gt_adj = flatten_temporal_adjacency_graph(shape="time_child_parent", causal_method="cd", graph=gt_adj, experiment_name=gt_name)
-    gt_adj_flat = gt_adj.astype(int)
+    gt_adj_flat = gt_adj.astype(np.int8)
     print("gt_adj_flat.shape", gt_adj_flat.shape)
     print("gt_adj_flat \n", gt_adj_flat)
 
@@ -114,6 +115,12 @@ def eval_savar(f, model, num_modes, difficulty, seed):
 
 
     # -- 4. Calculate metrics --
+
+    # calculate accuracy of causal discovery vs cdsd (picabu) for dataset
+    cd_true_positives = int(np.array_equal(savar_cd_flat, gt_adj_flat))
+    crl_true_positives = int(np.array_equal(savar_crl_flat, gt_adj_flat))
+    print("Did CD recover the full ground truth graph? ", cd_true_positives)
+    print("Did CRL recover the full ground truth graph? ", crl_true_positives)
 
     # print("\nStructural & causal metrics on CRL...")
 
@@ -158,73 +165,53 @@ def eval_savar(f, model, num_modes, difficulty, seed):
 
     print("==============================")
 
-    # 9) Save results to csv
-    outputs = [
-        str(model),
-        str(num_modes),
-        str(difficulty),
-        str(seed),
-        str(crl_parent_aid),
-        str(crl_oset_aid),
-        str(crl_ancestor_aid),
-        str(crl_sid),
-        str(crl_shd),
-        str(crl_f1),
-        str(crl_precision),
-        str(crl_recall),
-        str(cd_parent_aid),
-        str(cd_oset_aid),
-        str(cd_ancestor_aid),
-        str(cd_sid),
-        str(cd_shd),
-        str(cd_f1),
-        str(cd_precision),
-        str(cd_recall),
-    ]
-    f.write(", ".join(outputs) + "\n")
+    return {
+        "cd_true_positives": cd_true_positives,
+        "cd_parent_aid": cd_parent_aid,
+        "cd_oset_aid": cd_oset_aid,
+        "cd_ancestor_aid": cd_ancestor_aid,
+        "cd_sid": cd_sid,
+        "cd_shd": cd_shd,
+        "cd_f1": cd_f1,
+        "cd_precision": cd_precision,
+        "cd_recall": cd_recall,        
+        "crl_true_positives": crl_true_positives,
+        "crl_parent_aid": crl_parent_aid,
+        "crl_oset_aid": crl_oset_aid,
+        "crl_ancestor_aid": crl_ancestor_aid,
+        "crl_sid": crl_sid,
+        "crl_shd": crl_shd,
+        "crl_f1": crl_f1,
+        "crl_precision": crl_precision,
+        "crl_recall": crl_recall,
+    }
 
 
 # ---- CMD LINE ARGS
-results_csv_path = OUTPUTS_DIR / f"evaluation.csv"
-with open(results_csv_path, "a") as f:
-    coefs_header = ", ".join(["psd_coeff_" + str(i) for i in range(11)])
-    coefs_header_savar = ", ".join(["psd_coeff_savar_" + str(i) for i in range(11)])
-    header = [
-        "model",
-        "num_modes",
-        "difficulty",
-        "seed",
-        "crl_parent_aid",
-        "crl_oset_aid",
-        "crl_ancestor_aid",
-        "crl_sid",
-        "crl_shd",
-        "crl_f1",
-        "crl_precision",
-        "crl_recall",
-        "cd_parent_aid",
-        "cd_oset_aid",
-        "cd_ancestor_aid",
-        "cd_sid",
-        "cd_shd",
-        "cd_f1",
-        "cd_precision",
-        "cd_recall",
-    ]
-    f.write(", ".join(header) + "\n")
+results_pkl_path = OUTPUTS_DIR / f"evaluation_savar_gt.pkl"
 
-    seed = 1
-    dataset = "savar"
-    model = "savar"
 
-    for num_modes in [4, 16, 64]:
-        for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
-            try:
-                print(f"Evaluating dataset: {dataset}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-                eval_savar(f, model, num_modes, difficulty, seed)
-            except Exception as e:
-                print(f"====== ERROR evaluating dataset: {dataset}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-                print(e)
-                continue
+seed = 1
+dataset = "savar"
+model = "savar"
+output_dict = {}
 
-            print("======== End =========\n")
+for num_modes in [4, 16, 64]:
+    for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
+        try:
+            print(f"Evaluating dataset: {dataset}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
+            output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = eval_savar(model, num_modes, difficulty, seed)
+        except Exception as e:
+            print(f"====== ERROR evaluating dataset: {dataset}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
+            print(e)
+            continue
+
+        print("======== End =========\n")
+
+# Save evaluation results to pickle file
+with open(results_pkl_path, "wb") as f:
+    pickle.dump(output_dict, f)
+print("keys:")
+for key in output_dict.keys():
+    print(key)
+print (f"Saved evaluation results to {results_pkl_path}")

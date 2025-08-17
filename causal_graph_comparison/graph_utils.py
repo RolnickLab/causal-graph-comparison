@@ -65,9 +65,6 @@ def permute_graph(datamodule, experiment_name):
         load_and_permute_all_matrices(inferred_modes, modes_gt, learned_graph, savar_gt, lat, lon, tau)
     )
 
-    print("permuted_temporal_matrix shape: ", permuted_temporal_matrix.shape)
-    print("permuted_temporal_matrix: ", permuted_temporal_matrix)
-
     # Plot permuted graph vs savar gt after permutation
     plotter.plot_adjacency_matrix(
         mat1=permuted_temporal_matrix,
@@ -84,6 +81,9 @@ def permute_graph(datamodule, experiment_name):
 
     # add extra autocorr timesteps to first dimension of permuted_temporal_matrix dimensions (5, 4, 4) -> (6, 4, 4)
     permuted_temporal_matrix = np.concatenate([np.zeros((1, num_modes, num_modes)), permuted_temporal_matrix], axis=0)
+
+    print("permuted_temporal_matrix shape: ", permuted_temporal_matrix.shape)
+    print("permuted_temporal_matrix: ", permuted_temporal_matrix)
 
     save_name = f"{experiment_name}-picabu_cdsd.npz"
     save_path = OUTPUTS_DIR / Path(save_name)
@@ -137,8 +137,9 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
         time_steps, _, num_nodes = temporal_graph.shape
     else:
         raise ValueError(f"Invalid shape: {shape}, please choose from 'parent_child_time' or 'time_child_parent'")
-    
-    tau = time_steps - 1
+
+    print(f"DBG: Num nodes: {num_nodes}")
+    print(f"DBG: time_steps: {time_steps}")
 
     # print(f"num_vars: {num_vars}")
     # print(f"time_steps: {time_steps}")
@@ -152,10 +153,9 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
     # flattened_graph = np.empty((new_dims, new_dims), dtype='<U10')
 
     if shape == "parent_child_time":
-        print("======= parent_child_time =======")
+        print("parent_child_time: swapping axis to time_child_parent...")
         temporal_graph = np.swapaxes(temporal_graph, 0, -1)
 
-    print("======= time_child_parent =======")
     for t_lag in range(time_steps): #i
         for child in range(num_nodes): #j
             for parent in range(num_nodes): #k
@@ -228,6 +228,9 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
         save_name = f"{experiment_name}-flat_graph-{causal_method}.npz"
     else:
         save_name = f"flat_graph{causal_method}.npz"
+
+    print(f"New dims: {new_dims}")
+    print(f"Size of flat_graph: {flat_graph.shape}")
 
     save_path = OUTPUTS_DIR / Path(save_name)
     print("Saving flattened graph to: ", save_path)

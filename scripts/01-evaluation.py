@@ -1,3 +1,4 @@
+import pickle
 from climatem.synthetic_data.graph_evaluation_ilija import extract_adjacency_matrix
 import torch
 import numpy as np
@@ -15,7 +16,7 @@ from climatem.model.metrics import *
 #TODO run vae 64 hard picabu training
 
 
-def eval(f, model, num_modes, difficulty, seed):
+def eval(model, num_modes, difficulty, seed):
     print(
         f"======= Evaluating model: {model} on SAVAR data with difficulty: {difficulty}, num_modes: {num_modes}, seed: {seed} ======="
     )
@@ -86,19 +87,19 @@ def eval(f, model, num_modes, difficulty, seed):
     print("gt_adj.shape", gt_adj.shape)
     print("gt_adj", gt_adj)
 
-    quit()
-
     # -- 4. Calculate metrics --
 
     print("\nStructural & causal metrics on CRL...")
 
-    crl_parent_aid = parent_aid(gt_crl_graph, crl_graph, edge_direction="from row to column")
-    crl_oset_aid = oset_aid(gt_crl_graph, crl_graph, edge_direction="from row to column")
-    crl_ancestor_aid = ancestor_aid(gt_crl_graph, crl_graph, edge_direction="from row to column")
-    crl_sid = sid(gt_crl_graph, crl_graph, edge_direction="from row to column")
-    crl_shd = shd(gt_crl_graph, crl_graph)
-    crl_f1 = f1_score(crl_graph, gt_crl_graph)
-    crl_precision, crl_recall = precision_recall(crl_graph, gt_crl_graph)
+    # Gadjid package: G_true, G_guess
+    crl_parent_aid = parent_aid(savar_crl_graph, crl_graph, edge_direction="from row to column")
+    crl_oset_aid = oset_aid(savar_crl_graph, crl_graph, edge_direction="from row to column")
+    crl_ancestor_aid = ancestor_aid(savar_crl_graph,crl_graph, edge_direction="from row to column")
+    crl_sid = sid(savar_crl_graph, crl_graph, edge_direction="from row to column")
+    crl_shd = shd(savar_crl_graph, crl_graph)
+    # F1 & precision/recall: G_guess, G_true
+    crl_f1 = f1_score(crl_graph, savar_crl_graph)
+    crl_precision, crl_recall = precision_recall(crl_graph, savar_crl_graph)
 
     print("crl_parent_aid: ", crl_parent_aid)
     print("crl_oset_aid: ", crl_oset_aid)
@@ -113,14 +114,15 @@ def eval(f, model, num_modes, difficulty, seed):
     print("\nStructural & causal metrics on CD...")
 
     # cd
-    cd_parent_aid = parent_aid(gt_cd_graph, cd_graph, edge_direction="from row to column")
-    cd_oset_aid = oset_aid(gt_cd_graph, cd_graph, edge_direction="from row to column")
-    cd_ancestor_aid = ancestor_aid(gt_cd_graph, cd_graph, edge_direction="from row to column")
-    cd_sid = sid(gt_cd_graph, cd_graph, edge_direction="from row to column")
-    cd_shd = shd(gt_cd_graph, cd_graph)
-    cd_f1 = f1_score(cd_graph, gt_cd_graph)
-    cd_precision, cd_recall = precision_recall(cd_graph, gt_cd_graph)
-    # proportion of False positive / False negative
+    # Gadjid package: G_true, G_guess
+    cd_parent_aid = parent_aid(savar_cd_graph, cd_graph, edge_direction="from row to column")
+    cd_oset_aid = oset_aid(savar_cd_graph, cd_graph, edge_direction="from row to column")
+    cd_ancestor_aid = ancestor_aid(savar_cd_graph, cd_graph, edge_direction="from row to column")
+    cd_sid = sid(savar_cd_graph, cd_graph, edge_direction="from row to column")
+    cd_shd = shd(savar_cd_graph, cd_graph)
+    # F1 & precision/recall: G_guess, G_true
+    cd_f1 = f1_score(cd_graph, savar_cd_graph)
+    cd_precision, cd_recall = precision_recall(cd_graph, savar_cd_graph)
 
     print("cd_parent_aid", cd_parent_aid)
     print("cd_oset_aid", cd_oset_aid)
@@ -139,6 +141,7 @@ def eval(f, model, num_modes, difficulty, seed):
 
     next_step_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_1steps.npz"
     next_step = np.load(next_step_path)["outputs"]
+    next_step_inputs = np.load(next_step_path)["inputs"]
     print("next_step", next_step.shape)
 
     next_step_targets = np.load(next_step_path)["targets"]
@@ -194,10 +197,11 @@ def eval(f, model, num_modes, difficulty, seed):
     print("\nRunning power spectral density on rollouts...")
 
     rollouts_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_20steps.npz"
+    rollouts = np.load(rollouts_path)["outputs"]
+    rollouts_targets = np.load(rollouts_path)["targets"]
+    rollouts_inputs = np.load(rollouts_path)["inputs"]
+    # LSD = least square difference not linear spectral density
     LSD, fft_coeffs_rollouts, fft_coeffs_savar = power_spectral_density(rollouts_path, num_modes)
-
-    psd_coeff_list = ", ".join([str(coeff) for coeff in fft_coeffs_rollouts])
-    psd_coeff_list_savar = ", ".join([str(coeff) for coeff in fft_coeffs_savar])
 
     # 9) Interventions
     print("\nAnalyzing interventions...")
@@ -205,6 +209,7 @@ def eval(f, model, num_modes, difficulty, seed):
     intervention_path = f"{OUTPUTS_DIR}/{experiment_name}-interventions.npz"
     intervention_data = np.load(intervention_path)
     intervention_outputs = intervention_data["intervened_outputs"]
+    intervention_inputs = intervention_data["intervened_inputs"]
     print("intervention_outputs", intervention_outputs.shape)
 
     intervention_targets = intervention_data["intervened_targets"]
@@ -215,101 +220,96 @@ def eval(f, model, num_modes, difficulty, seed):
 
     print("==============================\n")
 
-    # 9) Save results to csv
-    outputs = [
-        str(model),
-        str(num_modes),
-        str(difficulty),
-        str(seed),
-        str(crl_parent_aid),
-        str(crl_oset_aid),
-        str(crl_ancestor_aid),
-        str(crl_sid),
-        str(crl_shd),
-        str(crl_f1),
-        str(crl_precision),
-        str(crl_recall),
-        str(cd_parent_aid),
-        str(cd_oset_aid),
-        str(cd_ancestor_aid),
-        str(cd_sid),
-        str(cd_shd),
-        str(cd_f1),
-        str(cd_precision),
-        str(cd_recall),
-        str(next_step_rmse),
-        str(next_step_mse),
-        str(next_step_mae),
-        str(next_step_r2),
-        str(next_step_variance),
-        str(next_step_targets_variance),
-        str(next_step_bias),
-        str(next_step_stdev),
-        str(next_step_targets_stdev),
-        str(next_step_range),
-        str(next_step_targets_range),
-        str(intervention_rmse),
-        str(LSD),
-        str(psd_coeff_list),
-        str(psd_coeff_list_savar),
+    need = [
+        # "gt_shd",
+        # "gt_f1",
+        # "gt_precision",
+        # "gt_recall",
+        # "gt_parent_aid",
+        # "gt_oset_aid",
+        # "gt_ancestor_aid",
+        # "gt_sid",
+        # "time series rollouts",
+        # "time series targets",
+        # "5 prev time steps + 1 next time step",
     ]
-    f.write(", ".join(outputs) + "\n")
+
+    # 9) Sav
+    output_dict = {
+        "crl_parent_aid": crl_parent_aid,
+        "crl_oset_aid": crl_oset_aid,
+        "crl_ancestor_aid": crl_ancestor_aid,
+        "crl_sid": crl_sid,
+        "crl_shd": crl_shd,
+        "crl_f1": crl_f1,
+        "crl_precision": crl_precision,
+        "crl_recall": crl_recall,
+        "cd_parent_aid": cd_parent_aid,
+        "cd_oset_aid": cd_oset_aid,
+        "cd_ancestor_aid": cd_ancestor_aid,
+        "cd_sid": cd_sid,
+        "cd_shd": cd_shd,
+        "cd_f1": cd_f1,
+        "cd_precision": cd_precision,
+        "cd_recall": cd_recall,
+        "next_step_rmse": next_step_rmse,
+        "next_step_mse": next_step_mse,
+        "next_step_mae": next_step_mae,
+        "next_step_r2": next_step_r2,
+        "next_step_variance": next_step_variance,
+        "next_step_targets_variance": next_step_targets_variance,
+        "next_step_bias": next_step_bias,
+        "next_step_stdev": next_step_stdev,
+        "next_step_targets_stdev": next_step_targets_stdev,
+        "next_step_range": next_step_range,
+        "next_step_targets_range": next_step_targets_range,
+        "lsd": LSD,
+        "fft_coeffs_rollouts": fft_coeffs_rollouts,
+        "fft_coeffs_savar": fft_coeffs_savar,
+        "intervention_rmse": intervention_rmse,
+        "intervention_inputs_sample": intervention_inputs[0],
+        "intervention_outputs_sample": intervention_outputs[0],
+        "intervention_targets_sample": intervention_targets[0],
+        "next_step_sample": next_step[0],
+        "next_step_targets_sample": next_step_targets[0],
+        "next_step_inputs_sample": next_step_inputs[0],
+        "rollouts_sample": rollouts[0],
+        "rollouts_targets_sample": rollouts_targets[0],
+        "rollouts_inputs_sample": rollouts_inputs[0],
+    }
+
+    return output_dict
 
 
 # ---- CMD LINE ARGS
-results_csv_path = OUTPUTS_DIR / f"evaluation.csv"
-with open(results_csv_path, "a") as f:
-    coefs_header = ", ".join(["psd_coeff_" + str(i) for i in range(11)])
-    coefs_header_savar = ", ".join(["psd_coeff_savar_" + str(i) for i in range(11)])
-    header = [
-        "model",
-        "num_modes",
-        "difficulty",
-        "seed",
-        "crl_parent_aid",
-        "crl_oset_aid",
-        "crl_ancestor_aid",
-        "crl_sid",
-        "crl_shd",
-        "crl_f1",
-        "crl_precision",
-        "crl_recall",
-        "cd_parent_aid",
-        "cd_oset_aid",
-        "cd_ancestor_aid",
-        "cd_sid",
-        "cd_shd",
-        "cd_f1",
-        "cd_precision",
-        "cd_recall",
-        "next_step_rmse",
-        "next_step_mse",
-        "next_step_mae",
-        "next_step_r2",
-        "next_step_variance",
-        "next_step_targets_variance",
-        "next_step_bias",
-        "next_step_stdev",
-        "next_step_targets_stdev",
-        "next_step_range",
-        "next_step_targets_range",
-        "LSD",
-        coefs_header,
-        coefs_header_savar,
-    ]
-    f.write(", ".join(header) + "\n")
+results_pkl_path = OUTPUTS_DIR / f"evaluation.pkl"
+output_dict = {}
+seed = 1
+dataset = "savar"
 
-    seed = 1
-    dataset = "savar"
+for model in ["mlp", "cnn", "lstm", "vae"]:
+    for num_modes in [4, 16, 64]:
+        for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
+            if model == "vae" and num_modes == 64 and difficulty == "hard":
+                print("Skipping vae 64 hard...")
+                continue
+            if model == "vae" and num_modes == 64 and difficulty == "med_hard":
+                print("Skipping vae 64 med_hard...")
+                continue
+            try:
+                print(f"Evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
+                outputs = eval(model, num_modes, difficulty, seed)
+                output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = outputs
+            except Exception as e:
+                print(f"====== ERROR evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
+                print(e)
+                continue
+            print("======== End =========\n")
 
-    for model in ["vae"]:
-        for num_modes in [4]:
-            for difficulty in ["hard"]:
-                try:
-                    print(f"Evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-                    eval(f, model, num_modes, difficulty, seed)
-                except Exception as e:
-                    print(f"====== ERROR evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-                    print(e)
-                    continue
-                print("======== End =========\n")
+# Save evaluation results to pickle file
+with open(results_pkl_path, "wb") as f:
+    pickle.dump(output_dict, f)
+print("keys:")
+for key in output_dict.keys():
+    print(key)
+print (f"Saved evaluation results to {results_pkl_path}")
