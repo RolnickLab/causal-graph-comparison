@@ -1,4 +1,5 @@
 import pickle
+from climatem.data_loader import savar_dataset
 from climatem.synthetic_data.graph_evaluation_ilija import extract_adjacency_matrix
 import torch
 import numpy as np
@@ -8,15 +9,10 @@ from gadjid import ancestor_aid, oset_aid, parent_aid, shd, sid
 from causal_graph_comparison import *
 from causal_graph_comparison.psd import power_spectral_density
 from climatem.model.metrics import *
-
-#TODO flatten gt_adj
-#TODO compare cd and crl on savar
-#TODO why is cd graph 64x64 for vae instead of 80x80
-#TODO run vae main 4 hard <-- make sure crl is saved with proper shape (6, 4, 4)
-#TODO run vae 64 hard picabu training
+from pathlib import Path
 
 
-def eval(model, num_modes, difficulty, seed):
+def eval(model, dataset, num_modes, difficulty, seed):
     print(
         f"======= Evaluating model: {model} on SAVAR data with difficulty: {difficulty}, num_modes: {num_modes}, seed: {seed} ======="
     )
@@ -24,28 +20,77 @@ def eval(model, num_modes, difficulty, seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+    # 1) Load data
+    print("Loading data...")
+
     data_name = f"modes_{num_modes}-diff_{difficulty}-seed_{seed}"
     experiment_name = f"{model}-{data_name}"
     savar_name = f"{dataset}-{data_name}"
 
-    crl_graph_path = OUTPUTS_DIR / f"{experiment_name}-flat_graph-binary-crl.npz"
-    cd_graph_path = OUTPUTS_DIR / f"{experiment_name}-flat_graph-binary-cd.npz"
+    model_files = {
+    "flat_graph-binary-cd": "cd_graph_path", # lin/nonlin doesn't matter, but it can
+    "flat_graph-binary-crl": "crl_graph_path", # has to say lin/nonlin
+    "samples_1000-rollouts_20steps": "rollouts_path",
+    "samples_1000-rollouts_1steps": "next_step_path",
+    "interventions": "intervention_path",
+    }
 
-    savar_crl_graph_path = OUTPUTS_DIR / f"{savar_name}-flat_graph-binary-crl.npz"
-    savar_cd_graph_path = OUTPUTS_DIR / f"{savar_name}-flat_graph-binary-cd.npz"
+    path = Path("/Volumes/GOOS/eval")
 
-    next_step_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_1steps.npz"
-    next_step_data = np.load(next_step_path)
-    print("next_step_path", next_step_data["targets"].shape)
+    model_paths = {}
 
-    # 1) Load data
+    for file_name, var in list(model_files.items()):
+        file = list(path.glob(f"{experiment_name}*{file_name}*.npz"))[0]
+        model_paths[var] = file
 
-    print("Loading data...")
+    savar_paths = {}
 
-    crl_graph = np.load(crl_graph_path)["graph"]
-    cd_graph = np.load(cd_graph_path)["graph"]
-    savar_crl_graph = np.load(savar_crl_graph_path)["graph"]
-    savar_cd_graph = np.load(savar_cd_graph_path)["graph"]
+    savar_files = {
+    "flat_graph-binary-cd": "savar_cd_graph_path", # lin/nonlin doesn't matter, but it can
+    "flat_graph-binary-crl": "savar_crl_graph_path", # has to say lin/nonlin
+    }
+
+    for file_name, var in list(savar_files.items()):
+        file = list(path.glob(f"{savar_name}*{file_name}*.npz"))[0]
+        savar_paths[var] = file
+
+    next_step_data = np.load(model_paths["next_step_path"])
+    next_step_outputs = next_step_data["outputs"]
+    next_step_inputs = next_step_data["inputs"]
+    next_step_targets = next_step_data["targets"]
+
+    print("next_step_outputs", next_step_outputs.shape)
+    print("next_step_targets", next_step_targets.shape)
+    print("next_step_inputs", next_step_inputs.shape)
+
+    rollouts_outputs = np.load(model_paths["rollouts_path"])["outputs"]
+    rollouts_targets = np.load(model_paths["rollouts_path"])["targets"]
+    rollouts_inputs = np.load(model_paths["rollouts_path"])["inputs"]
+
+    print("rollouts_outputs", rollouts_outputs.shape)
+    print("rollouts_targets", rollouts_targets.shape)
+    print("rollouts_inputs", rollouts_inputs.shape)
+
+    crl_graph = np.load(model_paths["crl_graph_path"])["graph"]
+    cd_graph = np.load(model_paths["cd_graph_path"])["graph"]
+
+    # causal graph learned from savar data
+    savar_crl_graph = np.load(savar_paths["savar_crl_graph_path"])["graph"]
+    savar_cd_graph = np.load(savar_paths["savar_cd_graph_path"])["graph"]
+
+    intervention_data = np.load(model_paths["intervention_path"])
+    intervention_outputs = intervention_data["intervened_outputs"]
+    intervention_inputs = intervention_data["intervened_inputs"]
+    intervention_targets = intervention_data["intervened_targets"]
+
+    print("intervention_targets", intervention_targets.shape)
+    print("intervention_outputs", intervention_outputs.shape)
+    print("intervention_inputs", intervention_inputs.shape)
+
+    print("Data done loading.")
+    print(f"==============================\n")
+
+    print("Graph shapes")
 
     print("Causal representation learning:")
     print("crl graph.shape", crl_graph.shape)
@@ -62,32 +107,9 @@ def eval(model, num_modes, difficulty, seed):
     print("savar cd graph \n", savar_cd_graph)
     print("")
 
-    # 3) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
-    # TODO: add scripts/11-graph-eval_mlp.py to pipeline
-    # TODO: implement Distance Average Causal Effect: https://www.nature.com/articles/s41467-024-50813-z
-    print("==============================")
+    print("==============================\n")
 
-    # 0) Report recovery accuracy of causal discovery vs cdsd (picabu) for dataset
-    # get gt_adj from data file
-    # compare learned graphs on savar to gt_adj
-
-    print("Loading gt_adj from data file...")
-
-    links_coeffs = np.load(DATA_DIR / f"{data_name}_parameters.npy", allow_pickle=True).item()["links_coeffs"]
-    print("links_coeffs", links_coeffs)
-
-    for child_node, relationships in links_coeffs.items():
-        for relationship in relationships:
-            parent_node = relationship[0][0]
-            time_lag = abs(relationship[0][1])  # Convert negative lag to positive
-            weight = relationship[1]
-            print(f"{parent_node} --> {child_node}, lag {time_lag}, weight {weight}")
-
-    gt_adj = np.array(extract_adjacency_matrix(links_coeffs, num_modes, tau=5))
-    print("gt_adj.shape", gt_adj.shape)
-    print("gt_adj", gt_adj)
-
-    # -- 4. Calculate metrics --
+    # -- 2. Calculate metrics --
 
     print("\nStructural & causal metrics on CRL...")
 
@@ -135,56 +157,48 @@ def eval(model, num_modes, difficulty, seed):
 
     print("==============================")
 
-    # 7) Run RMSE, statistical metrics on all trained models
+    # 3) Run RMSE, statistical metrics on all trained models
 
     print("\nRunning statistical metrics on next step...")
 
-    next_step_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_1steps.npz"
-    next_step = np.load(next_step_path)["outputs"]
-    next_step_inputs = np.load(next_step_path)["inputs"]
-    print("next_step", next_step.shape)
-
-    next_step_targets = np.load(next_step_path)["targets"]
-    print("next_step_targets", next_step_targets.shape)
-
     # RMSE
-    next_step_rmse = np.sqrt(np.mean((next_step - next_step_targets) ** 2))
+    next_step_rmse = np.sqrt(np.mean((next_step_outputs - next_step_targets) ** 2))
     print("next_step_rmse", next_step_rmse)
 
     # MSE
-    next_step_mse = np.mean((next_step - next_step_targets) ** 2)
+    next_step_mse = np.mean((next_step_outputs - next_step_targets) ** 2)
     print("next_step_mse", next_step_mse)
 
     # MAE
-    next_step_mae = np.mean(np.abs(next_step - next_step_targets))
+    next_step_mae = np.mean(np.abs(next_step_outputs - next_step_targets))
     print("next_step_mae", next_step_mae)
 
     # R2
     next_step_r2 = 1 - (
-        np.sum((next_step - next_step_targets) ** 2) / np.sum((next_step_targets - np.mean(next_step_targets)) ** 2)
+        np.sum((next_step_outputs - next_step_targets) ** 2) / np.sum((next_step_targets - np.mean(next_step_targets)) ** 2)
     )
     print("next_step_r2", next_step_r2)
 
     # Variance
-    next_step_variance = np.var(next_step)
+    next_step_variance = np.var(next_step_outputs)
     print("next_step_variance", next_step_variance)
 
     next_step_targets_variance = np.var(next_step_targets)
     print("next_step_targets_variance", next_step_targets_variance)
 
     # Bias
-    next_step_bias = np.mean(np.mean(next_step - next_step_targets) ** 2) - next_step_targets_variance
+    next_step_bias = np.mean(np.mean(next_step_outputs - next_step_targets) ** 2) - next_step_targets_variance
     print("next_step_bias", next_step_bias)
 
     # stdev
-    next_step_stdev = np.std(next_step)
+    next_step_stdev = np.std(next_step_outputs)
     print("next_step_stdev", next_step_stdev)
 
     next_step_targets_stdev = np.std(next_step_targets)
     print("next_step_targets_stdev", next_step_targets_stdev)
 
     # range
-    next_step_range = np.max(next_step) - np.min(next_step)
+    next_step_range = np.max(next_step_outputs) - np.min(next_step_outputs)
     print("next_step_range", next_step_range)
 
     next_step_targets_range = np.max(next_step_targets) - np.min(next_step_targets)
@@ -192,47 +206,20 @@ def eval(model, num_modes, difficulty, seed):
 
     print("==============================")
 
-    # 8) Apply power spectral density script from climatem module to: inference from models, targets
+    # 4) Apply power spectral density script from climatem module to: inference from models, targets
 
     print("\nRunning power spectral density on rollouts...")
 
-    rollouts_path = f"{OUTPUTS_DIR}/{experiment_name}-samples_1000-rollouts_20steps.npz"
-    rollouts = np.load(rollouts_path)["outputs"]
-    rollouts_targets = np.load(rollouts_path)["targets"]
-    rollouts_inputs = np.load(rollouts_path)["inputs"]
     # LSD = least square difference not linear spectral density
-    LSD, fft_coeffs_rollouts, fft_coeffs_savar = power_spectral_density(rollouts_path, num_modes)
+    LSD, fft_coeffs_rollouts, fft_coeffs_savar = power_spectral_density(model_paths["rollouts_path"], num_modes)
 
-    # 9) Interventions
+    # 5) Interventions
     print("\nAnalyzing interventions...")
-
-    intervention_path = f"{OUTPUTS_DIR}/{experiment_name}-interventions.npz"
-    intervention_data = np.load(intervention_path)
-    intervention_outputs = intervention_data["intervened_outputs"]
-    intervention_inputs = intervention_data["intervened_inputs"]
-    print("intervention_outputs", intervention_outputs.shape)
-
-    intervention_targets = intervention_data["intervened_targets"]
-    print("intervention_targets", intervention_targets.shape)
 
     intervention_rmse = np.sqrt(np.mean((intervention_outputs - intervention_targets) ** 2))
     print("intervention_rmse", intervention_rmse)
 
     print("==============================\n")
-
-    need = [
-        # "gt_shd",
-        # "gt_f1",
-        # "gt_precision",
-        # "gt_recall",
-        # "gt_parent_aid",
-        # "gt_oset_aid",
-        # "gt_ancestor_aid",
-        # "gt_sid",
-        # "time series rollouts",
-        # "time series targets",
-        # "5 prev time steps + 1 next time step",
-    ]
 
     # 9) Sav
     output_dict = {
@@ -270,35 +257,28 @@ def eval(model, num_modes, difficulty, seed):
         "intervention_inputs_sample": intervention_inputs[0],
         "intervention_outputs_sample": intervention_outputs[0],
         "intervention_targets_sample": intervention_targets[0],
-        "next_step_sample": next_step[0],
+        "next_step_sample": next_step_outputs[0],
         "next_step_targets_sample": next_step_targets[0],
         "next_step_inputs_sample": next_step_inputs[0],
-        "rollouts_sample": rollouts[0],
+        "rollouts_sample": rollouts_outputs[0],
         "rollouts_targets_sample": rollouts_targets[0],
         "rollouts_inputs_sample": rollouts_inputs[0],
     }
 
     return output_dict
 
-
 # ---- CMD LINE ARGS
-results_pkl_path = OUTPUTS_DIR / f"evaluation.pkl"
+results_pkl_path = OUTPUTS_DIR / f"evaluation_final.pkl"
 output_dict = {}
 seed = 1
 dataset = "savar"
 
-for model in ["mlp", "cnn", "lstm", "vae"]:
-    for num_modes in [4, 16, 64]:
-        for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
-            if model == "vae" and num_modes == 64 and difficulty == "hard":
-                print("Skipping vae 64 hard...")
-                continue
-            if model == "vae" and num_modes == 64 and difficulty == "med_hard":
-                print("Skipping vae 64 med_hard...")
-                continue
+for model in ["mlp", "cnn", "lstm"]:
+    for num_modes in [4, 16]:
+        for difficulty in ["easy","med_easy", "med_hard", "hard"]:
             try:
                 print(f"Evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-                outputs = eval(model, num_modes, difficulty, seed)
+                outputs = eval(model, dataset, num_modes, difficulty, seed)
                 output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = outputs
             except Exception as e:
                 print(f"====== ERROR evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")

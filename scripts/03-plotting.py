@@ -6,12 +6,12 @@ from causal_graph_comparison import OUTPUTS_DIR
 seed = 1
 # experiment_name = f"{model}-modes_{modes}-diff_{difficulty}-seed_{seed}"
 
-results_pkl_path = OUTPUTS_DIR / f"evaluation.pkl"
+results_pkl_path = OUTPUTS_DIR / f"evaluation_final.pkl"
 # Load evaluation results
 with open(results_pkl_path, "rb") as f:
     output_dict = pickle.load(f)
 
-results_pkl_path = OUTPUTS_DIR / f"evaluation_savar_gt.pkl"
+results_pkl_path = OUTPUTS_DIR / f"evaluation_savar_gt_final.pkl"
 # Load evaluation results
 with open(results_pkl_path, "rb") as f:
     savar_gt_dict = pickle.load(f)
@@ -28,9 +28,9 @@ def get_marker_and_color(model):
     elif model == "lstm":
         marker = "s"  # filled square
         color = "green"
-    elif model == "vae":
-        marker = "^"  # filled triangle
-        color = "magenta"
+    # elif model == "vae":
+    #     marker = "^"  # filled triangle
+    #     color = "magenta"
     return marker, color
 
 diff_map = {
@@ -56,21 +56,21 @@ diff_map = {
 # metric_y = "cd_oset_aid" # weak correlation in mode 4
 # metric_y = "cd_ancestor_aid" # weak correlation in mode 4
 # metric_y = "cd_shd" # medium correlation in mode 4
-metric_y = "cd_f1" # some correlation in mode 4?
+# metric_y = "cd_f1" # some correlation in mode 4?
 
-metric_x = "lsd"
+# metric_x = "lsd"
 # metric_y = "crl_parent_aid" # strong correlation in mode 4 except for hard
 # metric_y = "crl_oset_aid" # strong correlation in mode 4 except for hard
 # metric_y = "crl_ancestor_aid" # strong correlation in mode 4 except for hard
 # metric_y = "crl_shd" # no correlation in mode 4 <-- lots of 0s because found correct graph
-metric_y = "crl_f1" # questionable correlation in mode 4
+# metric_y = "crl_f1" # questionable correlation in mode 4
 # metric_y = "cd_parent_aid" # only strong correlation in mode 4 for easy
 # metric_y = "cd_oset_aid" # moderate correlation in mode 4
 # metric_y = "cd_ancestor_aid" # moderate correlation in mode 4
 # metric_y = "cd_shd" # kind of strong correlation in mode 4
 # metric_y = "cd_f1" # some strong correlation in mode 4?
 
-metric_x = "next_step_rmse"
+# metric_x = "next_step_rmse"
 # metric_y = "crl_parent_aid" # extraordinarily strong correlation in mode 4 but e and me have 0s because found correct graph
 # metric_y = "crl_oset_aid" # strong correlation in mode 4 but e and me have 0s because found correct graph
 # metric_y = "crl_ancestor_aid" # strong correlation in mode 4, same as above
@@ -80,10 +80,10 @@ metric_x = "next_step_rmse"
 # metric_y = "cd_oset_aid" # nothing really to be honest
 # metric_y = "cd_ancestor_aid" #nothing
 # metric_y = "cd_shd" # strong correlation for me and e in mode 4
-metric_y = "cd_f1" # strong correlation for me and e in mode 4 (easiest ones to learn right)
+# metric_y = "cd_f1" # strong correlation for me and e in mode 4 (easiest ones to learn right)
 
 metric_x = "next_step_r2"
-# metric_y = "crl_parent_aid" # extraordinarily strong correlation negative in mode 4
+metric_y = "crl_parent_aid" # extraordinarily strong correlation negative in mode 4
 # metric_y = "crl_oset_aid"  # extraordinarily strong correlation negative in mode 4 
 # metric_y = "crl_ancestor_aid" # extraordinarily strong correlation negative in mode 4 
 # metric_y = "crl_shd" # no correlation
@@ -100,15 +100,14 @@ metric_x = "next_step_r2"
 # report r2 between crl_parent_aid/cd_parent_aid, crl_oset_aid/cd_oset_aid, crl_ancestor_aid/cd_ancestor_aid, crl_shd/cd_shd, crl_f1/cd_f1
 
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 8))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
 axes = {
     "4": ax1,
     "16": ax2, 
-    "64": ax3
 }
 
 md = {}
-for mode in ["4", "16", "64"]:
+for mode in ["4", "16"]:
     for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
         md[f"{mode}-{difficulty}"] = []
 
@@ -122,19 +121,21 @@ for k, v in output_dict.items():
     if len(identifier[2].split("_")) > 2:
         difficulty = identifier[2].split("_")[1] + "_" + identifier[2].split("_")[2]
 
-    if mode not in ["4", "16", "64"]:
-        continue
-
     y_metric = v[metric_y]
     if (isinstance(y_metric, list) or isinstance(y_metric, tuple)) and len(y_metric) > 1:
         y_metric = y_metric[0]
 
+    # print(f"y_metric: {y_metric}")
 
     x_metric = v[metric_x]
     if (isinstance(x_metric, list) or isinstance(x_metric, tuple)) and len(x_metric) > 1:
         x_metric = x_metric[0]
 
+    # print(f"x_metric: {x_metric}")
+
     md[f"{mode}-{difficulty}"].append((x_metric, y_metric))
+
+    # print(f"md: {md}")
 
     marker, color = get_marker_and_color(model)
     axes[mode].scatter(x_metric, y_metric, marker=marker, color=color)
@@ -142,7 +143,7 @@ for k, v in output_dict.items():
 
 # Add model legend markers and labels to each subplot
 for mode, ax in axes.items():
-    for model in ["mlp", "cnn", "lstm", "vae"]:
+    for model in ["mlp", "cnn", "lstm"]:
         marker, color = get_marker_and_color(model)
         ax.scatter([], [], marker=marker, color=color, label=model)
     
@@ -156,6 +157,9 @@ for mode, ax in axes.items():
 # calculate r2 for each mode-difficulty
 for k, v in md.items():
     mode, difficulty = k.split("-")
+    # print(f"mode: {mode}, difficulty: {difficulty}")
+    # print("v: ", v)
+
     xd = [x[0] for x in v]
     yd = [x[1] for x in v]
 
@@ -194,9 +198,9 @@ plt.show()
 
 # Plot PSD (fft coefficients) for 4 modes over 20 timesteps compared to targets for all models
 # Create subplots grid for different modes and difficulties
-modes = ["4", "16", "64"]
+modes = ["4", "16"]
 difficulties = ["easy", "med_easy", "med_hard", "hard"]
-models = ["mlp", "cnn", "lstm", "vae"]
+models = ["mlp", "cnn", "lstm"]
 
 fig, axes = plt.subplots(len(modes), len(difficulties), figsize=(20, 15))
 fig.suptitle("FFT Coefficients Comparison Across Models", fontsize=16)
@@ -231,6 +235,10 @@ for i, mode in enumerate(modes):
             ax.set_xlabel("Frequency")
             ax.set_ylabel("Coefficient Value")
             
+            # Add mode label to each subplot
+            ax.text(0.02, 0.98, f'Mode {mode}', transform=ax.transAxes,
+                   verticalalignment='top', fontsize=10)
+            
             # Only show legend for first subplot
             if i == 0 and j == 0:
                 ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -261,7 +269,7 @@ plt.close()
 # =============================
 
 gt_dict = {}
-for mode in ["4", "16", "64"]:
+for mode in ["4", "16"]:
     for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
         gt_dict["crl_true_positives"] = []
         gt_dict["cd_true_positives"] = []
@@ -306,6 +314,31 @@ crl_true_positives_count = np.sum(gt_dict["crl_true_positives"])
 cd_true_positives_count = np.sum(gt_dict["cd_true_positives"])
 print(f"CRL Accuracy: {crl_accuracy} ({crl_true_positives_count} / {len(gt_dict['crl_true_positives'])})")
 print(f"CD Accuracy: {cd_accuracy} ({cd_true_positives_count} / {len(gt_dict['cd_true_positives'])})")
+
+# Calculate averages per number of modes
+modes = ["4", "16"]
+metrics = ["parent_aid", "shd", "f1"]
+difficulties = ["easy", "med_easy", "med_hard", "hard"]
+
+print("\nAverages per number of modes:")
+print("-" * 50)
+for mode in modes:
+    print(f"\nMode {mode}:")
+    
+    # Calculate CRL averages
+    for metric in metrics:
+        values = [x[0] for x in gt_dict[f"crl_{metric}"] 
+                 if x[1].startswith(mode)]
+        avg = np.mean(values)
+        print(f"CRL {metric:10}: {avg:.3f}")
+    
+    # Calculate CD averages  
+    for metric in metrics:
+        values = [x[0] for x in gt_dict[f"cd_{metric}"]
+                 if x[1].startswith(mode)]
+        avg = np.mean(values)
+        print(f"CD {metric:10}: {avg:.3f}")
+
 
 def plot_metric_comparison(gt_dict, metric_name):
     """Plot comparison between CRL and CD for a given metric.
@@ -387,10 +420,14 @@ for metric in metrics:
 # TODO make this into ipynb 
 # plot gt vs learned graph
 
-# Plot time series rollout for 4 modes over 20 timesteps compared to targets for all models
+# Plot time series rollout for 1 mode over 20 timesteps compared to targets for all models
 # this is just illustrative example for methods illustration
 
 # Confirm that RMSE correlates to other statistical metrics
 # get r2 val?
 
-# intervened 5 time stesp
+# intervened 5 time steps, normal 5 time steps, sample prediction & target (visualize data)
+
+# tigramite package temporal graph
+
+# sample temporal adj graph vs ground truth for 4, 16, and 64 modes 

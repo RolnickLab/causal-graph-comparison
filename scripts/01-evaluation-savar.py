@@ -10,21 +10,25 @@ from causal_graph_comparison.graph_utils import binarize_array, flatten_temporal
 from causal_graph_comparison.psd import power_spectral_density
 from climatem.model.metrics import *
 
-
-def eval_savar(model, num_modes, difficulty, seed):
+def eval_savar(dataset,num_modes, difficulty, seed, linear=False):
     print(
-        f"======= Evaluating CD/CRL onSAVAR data with difficulty: {difficulty}, num_modes: {num_modes}, seed: {seed} ======="
+        f"======= Evaluating CD/CRL on SAVAR data with difficulty: {difficulty}, num_modes: {num_modes}, seed: {seed} ======="
     )
 
     torch.manual_seed(seed)
     np.random.seed(seed)
 
     data_name = f"modes_{num_modes}-diff_{difficulty}-seed_{seed}"
+    crl_name = data_name
+
+    if linear:
+        crl_name = f"{crl_name}-linear"
+
     savar_name = f"{dataset}-{data_name}"
     gt_name = f"gt-{savar_name}"
 
-    gt_crl_graph_path = OUTPUTS_DIR / f"{savar_name}-flat_graph-binary-crl.npz"
-    gt_cd_graph_path = OUTPUTS_DIR / f"{savar_name}-flat_graph-binary-cd.npz"
+    savar_crl_graph_path = OUTPUTS_DIR / f"{dataset}-{crl_name}-flat_graph-binary-crl.npz"
+    savar_cd_graph_path = OUTPUTS_DIR / f"{dataset}-{data_name}-flat_graph-binary-cd.npz"
 
     # temporal_crl_graph_path = OUTPUTS_DIR / f"{savar_name}-picabu_cdsd.npz"
     # temporal_crl_graph = np.load(temporal_crl_graph_path)["val_matrix"]
@@ -49,8 +53,8 @@ def eval_savar(model, num_modes, difficulty, seed):
 
     print("Loading data...")
 
-    savar_crl_flat = np.load(gt_crl_graph_path)["graph"]
-    savar_cd_flat = np.load(gt_cd_graph_path)["graph"]
+    savar_crl_flat = np.load(savar_crl_graph_path)["graph"]
+    savar_cd_flat = np.load(savar_cd_graph_path)["graph"]
 
     print("Causal representation learning:")
     print("crl graph.shape", savar_crl_flat.shape)
@@ -58,9 +62,6 @@ def eval_savar(model, num_modes, difficulty, seed):
     print("Causal discovery:")
     print("cd graph.shape", savar_cd_flat.shape)
 
-    # 3) Apply causal & structural comparison metrics to mlp (picabu, causal_discovery)
-    # TODO: add scripts/11-graph-eval_mlp.py to pipeline
-    # TODO: implement Distance Average Causal Effect: https://www.nature.com/articles/s41467-024-50813-z
     print("==============================")
 
     # 0) Report recovery accuracy of causal discovery vs cdsd (picabu) for dataset
@@ -188,7 +189,7 @@ def eval_savar(model, num_modes, difficulty, seed):
 
 
 # ---- CMD LINE ARGS
-results_pkl_path = OUTPUTS_DIR / f"evaluation_savar_gt.pkl"
+results_pkl_path = OUTPUTS_DIR / f"evaluation_savar_gt_final.pkl"
 
 
 seed = 1
@@ -196,11 +197,19 @@ dataset = "savar"
 model = "savar"
 output_dict = {}
 
-for num_modes in [4, 16, 64]:
+for num_modes in [4, 16]:
     for difficulty in ["easy", "med_easy", "med_hard", "hard"]:
         try:
             print(f"Evaluating dataset: {dataset}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-            output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = eval_savar(model, num_modes, difficulty, seed)
+            if num_modes == 4 and difficulty == "med_easy":
+                print("Using non-linear model")
+                output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = eval_savar(dataset,num_modes, difficulty, seed, linear=False)
+            elif num_modes == 4 and difficulty == "med_hard":
+                print("Using non-linear model")
+                output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = eval_savar(dataset,num_modes, difficulty, seed, linear=False)
+            else:
+                print("Using linear model")
+                output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = eval_savar(dataset,num_modes, difficulty, seed, linear=True)
         except Exception as e:
             print(f"====== ERROR evaluating dataset: {dataset}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
             print(e)

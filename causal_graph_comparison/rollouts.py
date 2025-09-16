@@ -8,9 +8,10 @@ def run_rollouts(model, experiment_name, rollouts, n_samples, test_loader, devic
 
     save_path = OUTPUTS_DIR / f"{experiment_name}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
 
-    if Path(save_path).exists():
-        print(f"Rollouts already exist for {experiment_name}, skipping...")
-        return save_path
+    if model.name != "vae":
+        if Path(save_path).exists():
+            print(f"Rollouts already exist for {experiment_name}, skipping...")
+            return save_path
 
     n_samples = n_samples - 1 # for indexing starting at 0
     data_list = []

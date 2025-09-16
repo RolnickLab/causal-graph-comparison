@@ -1,0 +1,1 @@
+accelerate launch --num_cpu_threads_per_process=8 --gpu_ids='all' 00-main.py --difficulty med_hard --num_modes 16 --seed 1 --model picabu

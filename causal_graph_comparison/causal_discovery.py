@@ -68,16 +68,16 @@ def get_num_gt_connections(links_coeffs):
         n_links += len(link)
     return n_links
 
-def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, difficulty, seed, subsample, tau_min=1, significance_level=0.0001):
+def causal_discovery(timeseries, num_modes, links_coeffs, tau_max, model_name, difficulty, seed, subsample, experiment_name, tau_min=1, significance_level=0.0001):
     """
     Run causal discovery on the outputs, targets, and inputs.
     Accept either array or path to array.
     """
-    output_filename = f"{OUTPUTS_DIR}/{model_name}-modes_{num_modes}-diff_{difficulty}-seed_{seed}-pcmci_causal_discovery.npz"
-    # if Path(output_filename).exists():
-    #     print(f"Causal discovery results already exist for {model_name}, skipping...")
-    #     data = np.load(output_filename)
-    #     return data['graph'], data['val_matrix'], data['p_matrix'], data['corr_matrix'], data['var_names']
+    output_filename = f"{OUTPUTS_DIR}/{experiment_name}-pcmci_causal_discovery.npz"
+    if Path(output_filename).exists():
+        print(f"Causal discovery results already exist for {model_name}, skipping...")
+        data = np.load(output_filename)
+        return data['graph'], data['val_matrix'], data['p_matrix'], data['corr_matrix'], data['var_names']
 
     # if timeseries is path to array, load it
     if isinstance(timeseries, Path) or isinstance(timeseries, str):

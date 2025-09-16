@@ -24,14 +24,7 @@ print(f"Plots will be saved in: {output_dir}")
 
 # load savar+picabu config file
 (
-    experiment_params,
-    data_params,
-    gt_params,
-    train_params,
-    picabu_params,
-    optim_params,
-    plot_params,
-    savar_params,
+    experiment_params, data_params, gt_params, train_params, model_params, optim_params, plot_params, savar_params, rollout_params,
 ) = load_picabu_config()
 
 # set device
@@ -41,7 +34,7 @@ device = torch.device(
 
 # generate savar data
 datamodule = generate_savar_data(
-    experiment_params, data_params, savar_params, train_params
+    experiment_params, data_params, gt_params, train_params, model_params, optim_params, plot_params, savar_params, rollout_params,
 )
 
 # Access the datasets directly
@@ -75,9 +68,9 @@ print(f"Val set size: {len(val_dataset)}")
 print("--------------------------------")
 
 # Create simple dataloaders for inspection if needed
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False)
-test_dataloader = datamodule.val_dataloader()
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=128, shuffle=False)
+test_dataloader = datamodule.val_dataloader(accelerator)
 test_train_dataloader = datamodule.train_dataloader(accelerator)
 
 print(f"Train dataloader size: {len(train_loader)}")
@@ -96,22 +89,39 @@ print(f"Test train dataloader size: {len(test_train_dataloader)}")
 
 # print("--------------------------------")
 
-# for batch in val_loader:
-#     x, y = batch
-#     print("VAL DATALOADER")
-#     print("\nBatch shapes:")
-#     print("Input shape:", x.shape)
-#     print("Target shape:", y.shape)
-#     break
+for batch in val_loader:
+    x, y = batch
+    print("VAL DATALOADER")
+    print("\nBatch shapes:")
+    print("Input shape:", x.shape)
+    print("Target shape:", y.shape)
+    break
 
-x, y = next(iter(train_loader))
+# Calculate stats across all batches
+input_means = []
+input_stds = []
+target_means = []
+target_stds = []
+
+for batch in train_loader:
+    x, y = batch
+    input_means.append(x.mean().item())
+    input_stds.append(x.std().item()) 
+    target_means.append(y.mean().item())
+    target_stds.append(y.std().item())
+
+# Average the stats across batches
+input_mean = sum(input_means) / len(input_means)
+input_std = sum(input_stds) / len(input_stds)
+target_mean = sum(target_means) / len(target_means)
+target_std = sum(target_stds) / len(target_stds)
 
 # Print data stats
-print("\nData statistics:")
-print("Input mean:", x.mean().item())
-print("Input std:", x.std().item())
-print("Target mean:", y.mean().item())
-print("Target std:", y.std().item())
+print("\nData statistics (averaged across all batches):")
+print("Input mean:", input_mean)
+print("Input std:", input_std) 
+print("Target mean:", target_mean)
+print("Target std:", target_std)
 
 # Check temporal relationship between inputs and targets
 print("\nChecking temporal relationship:")
@@ -239,11 +249,13 @@ print("- Range typically between -5 and 5 (covering ~99% of normal distribution)
 # Check if the data matches these expectations
 input_mean = all_inputs.mean().item()
 input_std = all_inputs.std().item()
-input_range = all_inputs.max().item() - all_inputs.min().item()
+input_min = all_inputs.min().item()
+input_max = all_inputs.max().item()
+input_range = abs(input_max) + abs(input_min)
 
 print("\nInput data normalization assessment:")
 print(f"Mean is {'close to 0' if abs(input_mean) < 0.1 else 'not close to 0'}: {input_mean}")
 print(f"Std is {'close to 1' if 0.8 < input_std < 1.2 else 'not close to 1'}: {input_std}")
-print(f"Range is {'typical for normalized data' if input_range < 10 else 'larger than expected for normalized data'}: {input_range}")
+print(f"Range is {'typical for normalized data' if input_range < 10 else 'larger than expected for normalized data'}: {input_range}, min: {input_min}, max: {input_max}")
 
 

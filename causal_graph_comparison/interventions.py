@@ -32,7 +32,7 @@ def create_intervened_nextstep(mode_weights, datamodule, input_data, device, int
     # print(" ======== IN INTERVENED NEXTSTEP ======== ")
     mode_weights = datamodule.savar_gt_modes_weights
     links_coeffs = datamodule.savar_links_coeffs
-    gt_adj = dict_to_matrix(links_coeffs)
+    gt_adj = dict_to_matrix(links_coeffs) # parent x child x time
     tau_max = datamodule.train_val_input4mips.tau
     num_modes = datamodule.num_modes
     spatial_resolution = datamodule.spatial_resolution

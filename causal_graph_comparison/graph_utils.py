@@ -50,13 +50,13 @@ def permute_graph(datamodule, experiment_name):
 
     # Plot learned graph vs savar gt before permutation
     plotter.plot_adjacency_matrix(
-        mat1=learned_graph,
+        mat1=learned_graph[::-1],
         mat2=savar_gt,
-        path=results.results_path,
-        name_suffix="transition",
+        path=results.results_path/Path("plots"),
+        name_suffix="final",
         no_gt=False,
-        iteration=1,
-        plot_through_time=True,
+        iteration=0,
+        plot_through_time=False,
     )
 
     # TODO: remember hardcoded permutation function for 100 mondes
@@ -67,13 +67,13 @@ def permute_graph(datamodule, experiment_name):
 
     # Plot permuted graph vs savar gt after permutation
     plotter.plot_adjacency_matrix(
-        mat1=permuted_temporal_matrix,
+        mat1=permuted_temporal_matrix[::-1],
         mat2=savar_gt,
-        path=results.results_path,
-        name_suffix="transition_permuted",
+        path=results.results_path/Path("plots"),
+        name_suffix="permuted",
         no_gt=False,
-        iteration=2,
-        plot_through_time=True,
+        iteration=0,
+        plot_through_time=False,
     )
 
     # reverse order of time steps (permutation outputs matrix in reverse order with last time step first)
@@ -86,6 +86,7 @@ def permute_graph(datamodule, experiment_name):
     print("permuted_temporal_matrix: ", permuted_temporal_matrix)
 
     save_name = f"{experiment_name}-picabu_cdsd.npz"
+
     save_path = OUTPUTS_DIR / Path(save_name)
 
     np.savez(save_path, val_matrix=permuted_temporal_matrix)
@@ -93,7 +94,7 @@ def permute_graph(datamodule, experiment_name):
     return permuted_temporal_matrix
 
 
-def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None, graph: np.ndarray = None, experiment_name: str = None, density_output: str = 'sparse', density_input: str = 'sparse') -> np.ndarray:
+def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None, graph: np.ndarray = None, experiment_name: str = None, linearity: str = None, density_output: str = 'sparse', density_input: str = 'sparse') -> np.ndarray:
     """Flatten a temporal adjacency graph.
 
     Args:
@@ -224,8 +225,8 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
 
     # populate new adjacency matrix with values from original graph
 
-    if experiment_name is not None:  
-        save_name = f"{experiment_name}-flat_graph-{causal_method}.npz"
+    if experiment_name is not None:
+        save_name = f"{experiment_name}-{linearity}-flat_graph-{causal_method}.npz"
     else:
         save_name = f"flat_graph{causal_method}.npz"
 

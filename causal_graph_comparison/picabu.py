@@ -35,6 +35,7 @@ def train_picabu(
     wandb,
     trained_model = None, # if None, train picabu on savar, otherwise train on model-generated data
     trained_model_params = None,
+    linear=False,
 ):
     # to run picabu as VAE, value should be 1e-8
     vae_mode = optim_params.ortho_mu_init < 1 
@@ -50,15 +51,21 @@ def train_picabu(
     else:
         trained_model_name = "picabu_savar"
 
-    save_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
+    if linear:
+        save_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}-linear"
+    else:
+        save_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}-nonlinear"
+
     name = f"{trained_model_name}-{save_name}"
+
+    print(f"Saving model as {name}")
     exp_path = Path(experiment_params.exp_path) / name
     exp_path.mkdir(exist_ok=True)
 
     # check if model already exists
-    if (exp_path / "model-final.pth").exists():
-        print(f"=== SKIPPING TRAINING: Model already exists at {exp_path / 'model-final.pth'}")
-        return
+    # if (exp_path / "model-final.pth").exists():
+    #     print(f"=== SKIPPING TRAINING: Model already exists at {exp_path / 'model-final.pth'}")
+    #     return
 
     t0 = time.time()
     

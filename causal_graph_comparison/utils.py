@@ -29,7 +29,7 @@ class PicabuResultsPaths:
 
         # remove model from the experiment name
         experiment_parts = experiment_name.split("-")
-        data_name = "-".join(experiment_parts[1:])
+        data_name = "-".join(experiment_parts[1:4])
 
         self.modes_gt_path = self.savar_path / Path(f"{data_name}_mode_weights.npy")
         self.modes_gt = np.load(self.modes_gt_path)

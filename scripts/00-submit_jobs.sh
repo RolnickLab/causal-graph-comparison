@@ -1,31 +1,43 @@
 # === run chris
 seed=1
-for mode in 4 16 64; do
-    for model in mlp cnn lstm vae; do
-        for difficulty in easy med_easy med_hard hard; do
-            # if [[ $model != vae ]]; then
-            #     if [[ $mode -eq 4 ]]; then
-            #         runtime=12:00:00
-            #     elif [[ $mode -eq 16 ]]; then
-            #         runtime=12:00:00
-            #     elif [[ $mode -eq 64 ]]; then
-            #         runtime=30:00:00
-            #     fi
-            # elif [[ $model = vae ]]; then
-            #     if [[ $mode -eq 4 ]]; then
-            #         runtime=20:00:00
-            #     elif [[ $mode -eq 16 ]]; then
-            #         runtime=26:00:00
-            #     elif [[ $mode -eq 64 ]]; then
-            #         runtime=50:00:00
-            #     fi
+for mode in 4 16; do
+    for model in mlp lstm cnn; do
+        for difficulty in easy hard; do
+            runtime=1:00:00
+            # if [[ $mode -eq 4 ]]; then
+            #     runtime=12:00:00
+            # elif [[ $mode -eq 16 ]]; then
+            #     runtime=14:30:00
+            # elif [[ $mode -eq 36 ]]; then
+            #     runtime=40:00:00
             # fi
-            runtime=01:00:00
+            if [[ $mode -eq 4 ]] && [[ $difficulty == "med_easy" ]]; then
+                echo "Skipping med_easy for 4 modes"
+                continue
+            elif [[ $mode -eq 4 ]] && [[ $difficulty == "med_hard" ]]; then
+                echo "Skipping med_hard for 4 modes"
+                continue
+            fi
             echo "model: ${model} difficulty: ${difficulty} mode: ${mode} seed: ${seed} runtime: ${runtime}"
-            sbatch --job-name=${model}-${mode}-${difficulty} --output=slurm/${model}_output_${difficulty}_${mode}_${seed}.txt --error=slurm/${model}_error_${difficulty}_${mode}_${seed}.txt --time=${runtime} 00-run_main.sh --difficulty ${difficulty} --num_modes ${mode} --seed ${seed} --model ${model}
+            sbatch --job-name=L${model}-${mode}-${difficulty} --output=slurm/L${model}_output_${difficulty}_${mode}_${seed}.txt --error=slurm/L${model}_error_${difficulty}_${mode}_${seed}.txt --time=${runtime} 00-run_main.sh --difficulty ${difficulty} --num_modes ${mode} --seed ${seed} --model ${model}
         done
     done
 done
+
+# sbatch --job-name=Lvae-16-easy --output=slurm/Lvae_output_easy_16_1.txt --error=slurm/Lvae_error_easy_16_1.txt --time=20:00:00 00-run_main.sh --difficulty easy --num_modes 16 --seed 1 --model vae
+
+# sbatch --job-name=NLvae-4-med_easy --output=slurm/NLvae_output_med_easy_4_1.txt --error=slurm/NLvae_error_med_easy_4_1.txt --time=12:00:00 00-run_main.sh --difficulty med_easy --num_modes 4 --seed 1 --model vae
+# sbatch --job-name=NLvae-4-med_hard --output=slurm/NLvae_output_med_hard_4_1.txt --error=slurm/NLvae_error_med_hard_4_1.txt --time=12:00:00 00-run_main.sh --difficulty med_hard --num_modes 4 --seed 1 --model vae
+# sbatch --job-name=picabu-4-med_easy --output=slurm/picabu_output_med_easy_4_1.txt --error=slurm/picabu_error_med_easy_4_1.txt --time=8:00:00 00-run_main.sh --difficulty med_easy --num_modes 4 --seed 1 --model picabu
+# sbatch --job-name=Lpicabu-4-med_easy --output=slurm/Lpicabu_output_med_easy_4_1.txt --error=slurm/Lpicabu_error_med_easy_4_1.txt --time=8:00:00 00-run_main.sh --difficulty med_easy --num_modes 4 --seed 1 --model picabu
+
+# sbatch --job-name=savar-64mh_mui01_muf15 --output=slurm/savar_output_64mh_mui01_muf15.txt --error=slurm/savar_error_64mh_mui01_muf15.txt --time=40:00:00 00-run_main.sh --difficulty med_hard --num_modes 64 --model picabu --sparsity_mu_init 0.01 --sparsity_mu_mult_factor 1.5
+# sbatch --job-name=savar-64mh_mui001_muf2 --output=slurm/savar_output_64mh_mui001_muf2.txt --error=slurm/savar_error_64mh_mui001_muf2.txt --time=40:00:00 00-run_main.sh --difficulty med_hard --num_modes 64 --model picabu --sparsity_mu_init 0.001 --sparsity_mu_mult_factor 2
+# sbatch --job-name=savar-64mh_mui01_muf2 --output=slurm/savar_output_64mh_mui01_muf2.txt --error=slurm/savar_error_64mh_mui01_muf2.txt --time=40:00:00 00-run_main.sh --difficulty med_hard --num_modes 64 --model picabu --sparsity_mu_init 0.01 --sparsity_mu_mult_factor 2
+
+# sbatch --job-name=savar-16mh_mui01_muf15 --output=slurm/savar_output_16mh_mui01_muf15.txt --error=slurm/savar_error_16mh_mui01_muf15.txt --time=20:00:00 00-run_main.sh --difficulty med_hard --num_modes 16 --model picabu --sparsity_mu_init 0.01 --sparsity_mu_mult_factor 1.5
+# sbatch --job-name=savar-16mh_mui001_muf2 --output=slurm/savar_output_16mh_mui001_muf2.txt --error=slurm/savar_error_16mh_mui001_muf2.txt --time=20:00:00 00-run_main.sh --difficulty med_hard --num_modes 16 --model picabu --sparsity_mu_init 0.001 --sparsity_mu_mult_factor 2
+# sbatch --job-name=savar-16mh_mui01_muf2 --output=slurm/savar_output_16mh_mui01_muf2.txt --error=slurm/savar_error_16mh_mui01_muf2.txt --time=20:00:00 00-run_main.sh --difficulty med_hard --num_modes 16 --model picabu --sparsity_mu_init 0.01 --sparsity_mu_mult_factor 2
 
 # sbatch --job-name=vae-64-hard --output=slurm/vae_output_hard_64_1.txt --error=slurm/vae_error_hard_64_1.txt --time=55:00:00 00-run_main.sh --difficulty hard --num_modes 64 --seed 1 --model vae
 # ==== MLP ====
