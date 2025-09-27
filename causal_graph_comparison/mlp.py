@@ -3,6 +3,17 @@ import torch
 import torch.nn as nn
 
 class MLP(nn.Module):
+    """MLP model for time series prediction.
+
+    Args:
+        input_size: Size of input features
+        output_size: Size of output features 
+        num_layers: Number of hidden layers
+
+    The model takes a sequence of flattened frames and predicts the next frame.
+    Input shape: (batch_size, seq_len, 1, input_size)
+    Output shape: (batch_size, 1, 1, output_size)
+    """
     def __init__(self, input_size, output_size, num_layers):
         super().__init__()
 

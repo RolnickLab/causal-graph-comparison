@@ -6,7 +6,7 @@ import torch.nn.functional as F
 class CNN(nn.Module):
     def __init__(self, input_channels, output_channels, image_size, channels, kernels, fc_layers):
         """
-        CNN for next-step prediction of 40x40 images.
+        CNN for next-step prediction on 2D images.
 
         Args:
             input_channels: Number of input timesteps (default: 5)

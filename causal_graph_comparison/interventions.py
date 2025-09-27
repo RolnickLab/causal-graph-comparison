@@ -8,7 +8,14 @@ from causal_graph_comparison import OUTPUTS_DIR
 from climatem.synthetic_data.savar import dict_to_matrix
 
 def create_intervention_samples(batch_size, intervened_modes, intervened_ts, intervention_values):
-    # Create 1000 random intervention samples
+    """Create a list of intervention samples for each batch.
+
+    Args:
+        batch_size: The number of samples to create
+        intervened_modes: The modes to intervene on
+        intervened_ts: The timesteps to intervene on
+        intervention_values: The values to add at the intervention points
+    """
     intervention_samples = [
         (
             np.random.choice(intervened_modes),
@@ -20,13 +27,20 @@ def create_intervention_samples(batch_size, intervened_modes, intervened_ts, int
     return intervention_samples
 
 def create_intervened_nextstep(mode_weights, datamodule, input_data, device, intervened_mode=None, intervention_value=None, intervened_t=None):
-    """
 
-    input_data are the tau timesteps that get intervened on 
-    at mode intervened_mode, with value +intervention_value, at timestep intervened_t
+    """Create an intervened next step prediction by modifying input data at a specific mode and timestep.
 
-    input_data is here of shape `self.spatial_resolution * self.time_length`.
-    This is to keep the savar structure similar to the one of `self.data_field`
+    Args:
+        mode_weights: The mode weights matrix
+        datamodule: The data module containing model parameters
+        input_data: Input tensor of shape (spatial_resolution, time_length) containing tau timesteps
+        device: The device to run computations on
+        intervened_mode: The mode index to intervene on
+        intervention_value: The value to add at the intervention point
+        intervened_t: The timestep to perform the intervention at
+
+    Returns:
+        Tensor containing the next step prediction after applying the intervention
     """
 
     # print(" ======== IN INTERVENED NEXTSTEP ======== ")
@@ -107,6 +121,22 @@ def create_intervened_nextstep(mode_weights, datamodule, input_data, device, int
     return next_step.cpu().numpy()
 
 def intervention(model, experiment_name, test_loader, datamodule, device):
+
+    """Apply interventions to a trained model.
+
+    Performs interventions on each mode at different timesteps with different intervention values.
+    For each intervention, predicts the next timestep using the model.
+
+    Args:
+        model: The trained model to apply interventions to
+        experiment_name: Name of the experiment
+        test_loader: DataLoader containing test data
+        datamodule: DataModule containing data parameters
+        device: Device to run model on (cpu/cuda)
+
+    Returns:
+        Path to saved intervention results file
+    """
 
     print(f"Applying interventions to {experiment_name}...")
 

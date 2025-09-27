@@ -12,6 +12,23 @@ from causal_graph_comparison import CONFIGS_DIR
 
 def generate_savar_data(experiment_params, data_params, gt_params, train_params, model_params, optim_params, plot_params, savar_params, rollout_params, reload_data=True):
 
+    """Generate synthetic SAVAR data for causal representation learning experiments.
+
+    Args:
+        experiment_params: Parameters for experiment setup
+        data_params: Parameters for data loading and processing
+        gt_params: Ground truth parameters
+        train_params: Training parameters
+        model_params: Model architecture parameters
+        optim_params: Optimization parameters
+        plot_params: Plotting parameters
+        savar_params: SAVAR model parameters
+        rollout_params: Rollout parameters
+        reload_data: Whether to reload existing data if available
+
+    Returns:
+        CausalClimateDataModule containing generated SAVAR data
+    """
     # Create data directory if it doesn't exist
     os.makedirs(data_params.data_dir, exist_ok=True)
     print(f"Data directory: {data_params.data_dir}")

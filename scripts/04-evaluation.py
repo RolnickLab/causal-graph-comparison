@@ -1,4 +1,5 @@
 import pickle
+import sys
 from climatem.data_loader import savar_dataset
 from climatem.synthetic_data.graph_evaluation_ilija import extract_adjacency_matrix
 import torch
@@ -13,6 +14,7 @@ from pathlib import Path
 
 
 def eval(model, dataset, num_modes, difficulty, seed):
+    
     print(
         f"======= Evaluating model: {model} on SAVAR data with difficulty: {difficulty}, num_modes: {num_modes}, seed: {seed} ======="
     )
@@ -273,18 +275,26 @@ output_dict = {}
 seed = 1
 dataset = "savar"
 
-for model in ["mlp", "cnn", "lstm"]:
-    for num_modes in [4, 16]:
-        for difficulty in ["easy","med_easy", "med_hard", "hard"]:
-            try:
-                print(f"Evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-                outputs = eval(model, dataset, num_modes, difficulty, seed)
-                output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = outputs
-            except Exception as e:
-                print(f"====== ERROR evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
-                print(e)
-                continue
-            print("======== End =========\n")
+# Open the output file once and keep it open for all evaluations
+with open("scripts/eval_output.txt", "w") as f:
+    original_stdout = sys.stdout
+    sys.stdout = f  # Redirect stdout to the file
+    
+    for model in ["mlp", "cnn", "lstm", "vae"]:
+        for num_modes in [4, 16]:
+            for difficulty in ["easy","med_easy", "med_hard", "hard"]:
+                try:
+                    print(f"Evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
+                    outputs = eval(model, dataset, num_modes, difficulty, seed)
+                    output_dict[f"{model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}"] = outputs
+                except Exception as e:
+                    print(f"====== ERROR evaluating model: {model}-modes_{num_modes}-diff_{difficulty}-seed_{seed}")
+                    print(e)
+                    continue
+                print("======== End =========\n")
+    
+    # Restore original stdout
+    sys.stdout = original_stdout
 
 # Save evaluation results to pickle file
 with open(results_pkl_path, "wb") as f:

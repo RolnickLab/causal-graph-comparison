@@ -94,7 +94,7 @@ def permute_graph(datamodule, experiment_name):
     return permuted_temporal_matrix
 
 
-def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None, graph: np.ndarray = None, experiment_name: str = None, linearity: str = None, density_output: str = 'sparse', density_input: str = 'sparse') -> np.ndarray:
+def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_params: dict = None, savar_params: dict = None, model_name: str = None, graph: np.ndarray = None, experiment_name: str = None, density_output: str = 'sparse', density_input: str = 'sparse') -> np.ndarray:
     """Flatten a temporal adjacency graph.
 
     Args:
@@ -199,14 +199,7 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
                         col_new = node_dst * time_steps + new_time_dst
                         flat_graph[row_new, col_new] = value
 
-    # ==========================================================================
-    # Part 3: Apply Causality Constraints
-    # ==========================================================================
-    # To enforce causality, a connection can only go from a later time point
-    # to an earlier one (e.g., t_src > t_dst). We must zero out any connection
-    # where the source time is less than or equal to the destination time.
-    # This prevents instantaneous connections (t_src = t_dst) and connections
-    # that go forward in time (t_src < t_dst).
+    # causality constraints (connections can only go forward in time, no instantaneous connections)
 
     # Create a vector representing the time step for each row/column
     time_indices = np.arange(new_dims) % time_steps
@@ -226,7 +219,7 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
     # populate new adjacency matrix with values from original graph
 
     if experiment_name is not None:
-        save_name = f"{experiment_name}-{linearity}-flat_graph-{causal_method}.npz"
+        save_name = f"{experiment_name}-flat_graph-{causal_method}.npz"
     else:
         save_name = f"flat_graph{causal_method}.npz"
 

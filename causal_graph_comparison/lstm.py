@@ -11,6 +11,17 @@ from torchvision import datasets, transforms
 
 
 class LSTM(nn.Module):
+    """LSTM model for time series prediction.
+
+    Args:
+        input_size: Size of input features
+        hidden_size: Number of hidden units in LSTM layer
+        num_layers: Number of LSTM layers
+
+    The model takes a sequence of flattened frames and predicts the next frame.
+    Input shape: (batch_size, seq_len, 1, input_size)
+    Output shape: (batch_size, 1, 1, input_size)
+    """
     def __init__(self, input_size, hidden_size, num_layers):
         super(LSTM, self).__init__()
         self.name = "lstm"

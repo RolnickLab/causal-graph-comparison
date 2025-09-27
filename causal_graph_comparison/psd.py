@@ -23,6 +23,17 @@ def get_all_targets(targets):
     return all_targets
 
 def power_spectral_density(rollouts_path, num_modes):
+    """Calculate power spectral density metrics between rollouts and ground truth.
+
+    Args:
+        rollouts_path: Path to .npz file containing rollout data
+        num_modes: Number of modes to reduce data to
+
+    Returns:
+        LSD: Least square difference between FFT coefficients
+        fft_coeffs_rollouts: FFT coefficients for model rollouts
+        fft_coeffs_savar: FFT coefficients for ground truth SAVAR data
+    """
     try:
         data = np.load(rollouts_path)
     except FileNotFoundError:
@@ -49,9 +60,9 @@ def power_spectral_density(rollouts_path, num_modes):
     print("all_targets.shape: ", all_targets.shape)
 
     # get fft coefficients
-    fft_coeffs_rollouts = np.fft.rfft(outputs, axis = 1)
+    fft_coeffs_rollouts = np.abs(np.fft.rfft(outputs, axis = 1))
     print("fft_coeffs_rollouts.shape: ", fft_coeffs_rollouts.shape)
-    fft_coeffs_savar = np.fft.rfft(targets, axis = 1)
+    fft_coeffs_savar = np.abs(np.fft.rfft(targets, axis = 1))
 
     print("fft_coeffs_savar.shape: ", fft_coeffs_savar.shape)
 
@@ -131,36 +142,3 @@ if __name__ == "__main__":
     plt.title(f"FFT Coefficients for Quadrant 0")
     plt.legend()
     plt.show()
-
-# ==== pseudocode 
-# rollouts_array_modemean --> n_samples * n_timesteps * n_modes 
-# savar_array_modemean --> n_timesteps * n_modes 
-# #these two arrays are the rollouts/savar after taking the mean for each mode
-
-# fft_coeffs_rollouts = np.fft.rfft(rollouts_array_modemean, axis = 1) --> this is n_samples * n_timesteps//2 * n_modes
-# fft_coeffs_savar = np.fft.rfft(savar_array_modemean, axis = 0) --> this is n_timesteps//2 * n_modes
-
-# fft_coeffs_rollouts_sample_mean = fft_coeffs_rollouts.mean(0)
-
-# LSD = np.abs(fft_coeffs_rollouts_sample_mean - fft_coeffs_savar).mean()
-
-    
-# fft torch or numpy
-
-# distance between coefficients (with 20 steps = 10 coefficients) log idstance
-# log spectral distance
-
-# autoregressive 20 steps --> fft
-# get coefficients from fft (10 coefficients per mode)
-# for each mode take mean of coefficients over the samples
-# take absolute value of difference between log of coefficient means for autoregressive & gt savar (for savar it's not mean there arent samples)
-# take mean over modes
-# plot power spectral density
-# plot log of coefficients
-# lsd - closer to 0 is better
-
-# torch.fft 
-
-# rmse on next step prediction
-
-# array shape is [num_samples, timesteps, dimensions]

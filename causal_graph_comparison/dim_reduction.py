@@ -78,14 +78,14 @@ def create_gaussian_kernel(size:int, mean:float, sd:float) -> np.ndarray:
     return normal_kernel
 
 def get_mean_modes(outputs:np.ndarray, num_modes:int, gaussian:bool=True) -> np.ndarray:
-    """Get the mean of each quadrant to reduce dimensionality using a gaussian kernel.
+    """Get the mean of each quadrant to reduce dimensionality using gaussian weights.
 
     Args:
         outputs (numpy.ndarray): The outputs to subsample, shape (num_samples, num_timesteps, num_features)
         num_modes (int): Number of modes (subdivisions) per side
         
     Returns:
-        numpy.ndarray: Mean of each quadrant with shape (num_samples, num_timesteps, num_modes)
+        mean_modes (numpy.ndarray): Mean of each quadrant with shape (num_samples, num_timesteps, num_modes)
     """
     if len(outputs.shape) != 3:
         raise ValueError("Expecting 3D array of size (num_samples, num_timesteps, num_features), got shape: ", outputs.shape)

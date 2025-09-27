@@ -5,6 +5,19 @@ import numpy as np
 from causal_graph_comparison import OUTPUTS_DIR
 
 def run_rollouts(model, experiment_name, rollouts, n_samples, test_loader, device):
+    """Run autoregressive rollouts using trained model.
+
+    Args:
+        model: Trained model to generate rollouts with
+        experiment_name: Name of experiment for saving rollouts
+        rollouts: Number of rollout timesteps
+        n_samples: Number of samples to generate rollouts for
+        test_loader: DataLoader containing test data
+        device: Device to run model on
+
+    Returns:
+        Path to saved rollouts file
+    """
 
     save_path = OUTPUTS_DIR / f"{experiment_name}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
 
@@ -92,6 +105,18 @@ def run_rollouts(model, experiment_name, rollouts, n_samples, test_loader, devic
     return save_path
 
 def get_targets(test_loader, n_samples, rollouts, experiment_name):
+
+    """Get targets from test data for rollouts.
+
+    Args:
+        test_loader: DataLoader containing test data
+        n_samples: Number of samples to generate rollouts for
+        rollouts: Number of rollout timesteps
+        experiment_name: Name of experiment for saving rollouts
+
+    Returns:
+        Path to saved targets file
+    """
 
     save_path = OUTPUTS_DIR / f"{experiment_name}-samples_{n_samples}-rollouts_{rollouts}steps.npz"
 

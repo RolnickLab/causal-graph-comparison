@@ -4,7 +4,8 @@ path = Path("~/scratch/cgc/outputs").expanduser()
 from shutil import copy2
 
 
-models = ["mlp", "lstm", "cnn", "vae"]
+# models = ["mlp", "lstm", "cnn", "vae"]
+models = ["vae"]
 difficulties = ["easy", "med_easy", "med_hard", "hard"]
 modes = ["4", "16"]
 files = [
@@ -36,7 +37,7 @@ for model in models:
                     # print(f"Created: {latest_file.stat().st_ctime}")
 
                 # Create eval subdirectory if it doesn't exist
-                eval_dir = path / "eval"
+                eval_dir = path / "eval-vae"
                 # eval_dir.mkdir(exist_ok=True)
 
                 # Copy latest file to eval subdirectory if it exists

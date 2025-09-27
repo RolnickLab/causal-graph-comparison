@@ -35,8 +35,27 @@ def train_picabu(
     wandb,
     trained_model = None, # if None, train picabu on savar, otherwise train on model-generated data
     trained_model_params = None,
-    linear=False,
 ):
+
+    """Train PICABU model on either SAVAR data or model-generated data.
+
+    Args:
+        datamodule: DataModule containing data parameters and loaders
+        experiment_params: Parameters for experiment setup
+        data_params: Parameters for data loading and processing
+        gt_params: Ground truth parameters
+        train_params: Training parameters
+        model_params: Model architecture parameters
+        optim_params: Optimization parameters
+        plot_params: Plotting parameters
+        savar_params: SAVAR model parameters
+        wandb: Weights & Biases logger
+        trained_model: Optional pre-trained model to generate data from
+        trained_model_params: Parameters for trained model if provided
+
+    Returns:
+        None
+    """
     # to run picabu as VAE, value should be 1e-8
     vae_mode = optim_params.ortho_mu_init < 1 
 
@@ -51,10 +70,7 @@ def train_picabu(
     else:
         trained_model_name = "picabu_savar"
 
-    if linear:
-        save_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}-linear"
-    else:
-        save_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}-nonlinear"
+    save_name = f"modes_{experiment_params.d_z}-diff_{savar_params.difficulty}-seed_{experiment_params.random_seed}"
 
     name = f"{trained_model_name}-{save_name}"
 
@@ -63,9 +79,10 @@ def train_picabu(
     exp_path.mkdir(exist_ok=True)
 
     # check if model already exists
-    # if (exp_path / "model-final.pth").exists():
-    #     print(f"=== SKIPPING TRAINING: Model already exists at {exp_path / 'model-final.pth'}")
-    #     return
+    if vae_mode:
+        if (exp_path / "model-final.pth").exists():
+            print(f"=== SKIPPING TRAINING: Model already exists at {exp_path / 'model-final.pth'}")
+            return
 
     t0 = time.time()
     

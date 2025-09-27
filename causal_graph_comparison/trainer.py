@@ -18,18 +18,21 @@ accelerator = Accelerator(log_with="wandb", cpu=cpu)
 
 
 def train(params: dict, model: nn.Module, device: torch.device, train_loader: torch.utils.data.DataLoader, optimizer: torch.optim.Optimizer, epoch: int):
-    """
-    Training loop for 
-    data shape: torch.Size([batch_size, tau, 1, dimensions])
-    target shape: torch.Size([batch_size, 1, future_timesteps, dimensions])
-    args:
-        log_interval: interval to log training loss
-        dry_run: if True, only run for 1 batch
-        model: mlp model
-        device: device to train on
-        train_loader: dataloader for training data
-        optimizer: optimizer to use
-        epoch: current epoch
+
+    """Training loop for emulators.
+
+    Args:
+        params (dict): Dictionary containing training parameters
+        model (nn.Module): Neural network model to train
+        device (torch.device): Device to train on
+        train_loader (DataLoader): DataLoader containing training data
+        optimizer (Optimizer): Optimizer to use for training
+        epoch (int): Current epoch number
+
+    Note:
+        Expected data shapes:
+        - Input data: [batch_size, tau, 1, dimensions]
+        - Target data: [batch_size, 1, future_timesteps, dimensions]
     """
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -71,11 +74,15 @@ def train(params: dict, model: nn.Module, device: torch.device, train_loader: to
 
 def test(model: nn.Module, device: torch.device, test_loader: torch.utils.data.DataLoader):
     """
-    Testing loop for model
-    args:
-        model: model to test
-        device: device to test on
-        test_loader: dataloader for testing data
+    Test the model on the test dataset.
+
+    Args:
+        model (nn.Module): Neural network model to test
+        device (torch.device): Device to test on
+        test_loader (DataLoader): DataLoader containing test data
+
+    Returns:
+        float: Average test loss across all batches
     """
     model.eval()
     test_loss = 0

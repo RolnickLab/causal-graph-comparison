@@ -3,6 +3,20 @@ import numpy as np
 
 class SineTestDataset(torch.utils.data.Dataset):
 
+	"""A simple dataset that generates sine wave data for testing models.
+
+	Args:
+		num_samples (int): Number of samples to generate
+		tau (int, optional): Number of past timesteps to use. Defaults to 30.
+		future (int, optional): Number of future timesteps to predict. Defaults to 1.
+		test (bool, optional): Whether this is test data. If True, adds offset. Defaults to False.
+
+	Returns:
+		tuple: (past_data, future_data) where:
+			- past_data has shape (tau, 1) containing tau timesteps of history
+			- future_data has shape (future, 1) containing future timesteps to predict
+	"""
+
 	def __init__(self, num_samples, tau=30, future=1, test=False):
 		x = np.linspace(0,100, num_samples) # from, to, number of samples… will give [0, 0.1, 0.2, …]
 

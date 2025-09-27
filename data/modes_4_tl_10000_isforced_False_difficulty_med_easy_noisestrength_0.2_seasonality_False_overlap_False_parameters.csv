@@ -1,8 +1,0 @@
-Parameter,Value
-name,modes_4_tl_10000_isforced_False_difficulty_med_easy_noisestrength_0.2_seasonality_False_overlap_False
-nx,40
-ny,40
-T,10000
-N,4
-tau,5
-links_coeffs,"{""0"": [[[0, -2], 0.5], [[2, -4], 0.48]], ""1"": [[[1, -2], 0.17], [[0, -4], 0.28]], ""2"": [[[2, -3], 0.29], [[0, -5], 0.36]], ""3"": [[[3, -3], 0.17], [[2, -5], 0.68]]}"

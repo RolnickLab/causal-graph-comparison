@@ -7,6 +7,16 @@ from pathlib import Path
 from causal_graph_comparison import SCRATCH_DIR
 
 class PicabuResultsPaths:
+    """Class to handle paths and loading of PICABU experiment results.
+
+    This class manages paths and loads results from PICABU experiments, including:
+    - Learned temporal graphs
+    - Encoder/decoder weights 
+    - Ground truth mode weights from SAVAR
+
+    Args:
+        experiment_name: Name of the PICABU experiment
+    """
     def __init__(self, experiment_name):
 
         # expects model_name to be in format "picabu_{model.name} ex. picabu_mlp"

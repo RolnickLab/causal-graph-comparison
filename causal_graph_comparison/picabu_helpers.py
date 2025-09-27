@@ -58,6 +58,13 @@ def assert_args(
 
 def load_picabu_config():
 
+    """Load and validate PICABU configuration parameters.
+
+    Returns:
+        Tuple containing experiment, data, ground truth, training, model, optimization, 
+        plotting, SAVAR and rollout parameters loaded from config file.
+    """
+
     params = get_json_config(CONFIGS_DIR / "savar-picabu.json")
 
     # get user's scratch directory:
