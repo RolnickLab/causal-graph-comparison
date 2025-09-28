@@ -11,5 +11,12 @@ setup(
         "numpy",
         "networkx",
         "matplotlib",
+        "tigramite",
+        "gadjid",
+        "networkx",
+        "pandas",
+        "scipy",
+        "torch",
+        "wandb",
     ],  # external packages as dependencies
 )
