@@ -113,6 +113,10 @@ sbatch scripts/01-run_main.sh --difficulty hard --num_modes 16 --model mlp
 
 ## Dataset and Graph Management Scripts (Part 0, not included in thesis)
 
+We built a class that can generate a dataset of modifications to a causal graph: reverse link direction, missing link, added link, wrong time lag. 
+Before applying the metrics to learned graphs, we wanted to systematically understand how AID differs from SHD and F1 when errors occur. 
+Unfortunately, due to time constraints analysis of this step was omitted from this work. 
+
 ### `scripts/06-part0-dataset-builder.py`
 **Purpose**: Builds and visualizes ground truth graphs from SAVAR data.
 
