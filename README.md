@@ -2,6 +2,8 @@
 By Christina Isaicu
 University of Amsterdam 
 
+🌟Read the thesis [here](Christina_Isaicu_MSc_Thesis.pdf) 🌟
+
 ## Installation
 
 ```bash
