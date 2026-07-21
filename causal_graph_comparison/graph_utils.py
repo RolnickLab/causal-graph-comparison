@@ -233,6 +233,111 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
 
     return flat_graph
 
+def flatten_temporal_adjacency_graph2(shape: str, graph: np.ndarray) -> np.ndarray:
+    """Flatten a temporal adjacency graph.
+
+    Args:
+        shape: The shape of the temporal adjacency graph (Num_vars (parent) x Num_vars (child) x Num_time_steps) "parent_child_time" OR (Num_time_steps, Num_var (child), Num_vars (parent)) "time_child_parent"
+        graph: The temporal adjacency graph (Num_vars (parent) x Num_vars (child) x Num_time_steps) OR (Num_time_steps, Num_var (child), Num_vars (parent))
+
+    Returns:
+        The flattened temporal adjacency graph (Num_vars * Num_time_steps, Num_vars * Num_time_steps)
+    """
+
+    temporal_graph = graph
+
+    print("Initial graph shape:", temporal_graph.shape)
+    print("Initial graph:\n", temporal_graph)
+    print("")
+
+    if shape == "parent_child_time":
+        num_nodes, _, time_steps = temporal_graph.shape
+    elif shape == "time_child_parent":
+        time_steps, _, num_nodes = temporal_graph.shape
+    else:
+        raise ValueError(f"Invalid shape: {shape}, please choose from 'parent_child_time' or 'time_child_parent'")
+
+    print(f"DBG: Num nodes: {num_nodes}")
+    print(f"DBG: time_steps: {time_steps}")
+
+    new_dims = num_nodes * time_steps 
+
+    # initialize new adjacency matrix with zeros
+    flat_graph = np.zeros((new_dims, new_dims))
+
+    # for debugging, uncomment:
+    # flattened_graph = np.empty((new_dims, new_dims), dtype='<U10')
+
+    if shape == "parent_child_time":
+        print("parent_child_time: swapping axis to time_child_parent...")
+        temporal_graph = np.swapaxes(temporal_graph, 0, -1)
+
+    for t_lag in range(time_steps): #i
+        for child in range(num_nodes): #j
+            for parent in range(num_nodes): #k
+                # DBG:
+                # print(f"i: {i}, j: {j}, k: {k}")
+                # print(f"graph[i, j, k]: {graph[i, j, k]}")
+                # print(f"new row: {k * time_steps +i}")
+                # print(f"new col: {j * time_steps}")
+                # print("=============")
+                flat_graph[parent * time_steps +t_lag, child * time_steps] = temporal_graph[t_lag, child, parent]
+
+    # keep copy of initial flat graph
+    initial_flat_graph = np.copy(flat_graph)
+    
+    # Iterate over all possible source nodes and times
+    for node_src in range(num_nodes):
+        # Original connections are from t > 0
+        for time_src in range(1, time_steps):
+            # Iterate over all possible destination nodes
+            for node_dst in range(num_nodes):
+                # Check for an initial connection to time=0
+                time_dst_initial = 0
+                row_initial = node_src * time_steps + time_src
+                col_initial = node_dst * time_steps + time_dst_initial
+                
+                value = initial_flat_graph[row_initial, col_initial]
+                
+                if value > 0:
+                    # Propagate this connection forward in time
+                    for k in range(1, time_steps):
+                        new_time_src = time_src + k
+                        new_time_dst = time_dst_initial + k
+                        
+                        # Stop if either the new source or dest time is out of bounds
+                        if new_time_src >= time_steps or new_time_dst >= time_steps:
+                            break
+                        
+                        # Calculate new indices and set the value
+                        row_new = node_src * time_steps + new_time_src
+                        col_new = node_dst * time_steps + new_time_dst
+                        flat_graph[row_new, col_new] = value
+
+    # causality constraints (connections can only go forward in time, no instantaneous connections)
+
+    # Create a vector representing the time step for each row/column
+    time_indices = np.arange(new_dims) % time_steps
+    
+    # Create a boolean mask where connections are invalid (t_src <= t_dst)
+    # We use broadcasting to compare every source time with every dest time.
+    invalid_mask = time_indices[:, np.newaxis] <= time_indices[np.newaxis, :]
+    
+    # Apply the mask to zero out all invalid connections
+    flat_graph[invalid_mask] = 0
+
+    # Convert to numpy array if not already
+    if not isinstance(flat_graph, np.ndarray):
+        # print("Converting matrix to ndarray")
+        flat_graph = np.array(flat_graph, dtype=np.int8)
+
+    # populate new adjacency matrix with values from original graph
+
+    print(f"New dims: {new_dims}")
+    print(f"Size of flat_graph: {flat_graph.shape}")
+
+    return flat_graph
+
 # Num_vars (parent) x Num_vars (child) x Num_time_steps
 # temporal_test_graph = np.array([
 #     [["x1t0->x1t0", "x1t1->x1t0", "x1t2->x1t0", "x1t3->x1t0", "x1t4->x1t0", "x1t5->x1t0"],
