@@ -336,7 +336,8 @@ def flatten_temporal_adjacency_graph2(shape: str, graph: np.ndarray) -> np.ndarr
     print(f"New dims: {new_dims}")
     print(f"Size of flat_graph: {flat_graph.shape}")
 
-    return flat_graph
+    # gadjid requires contiguous int8 adjacency matrices
+    return np.ascontiguousarray(flat_graph.astype(np.int8))
 
 # Num_vars (parent) x Num_vars (child) x Num_time_steps
 # temporal_test_graph = np.array([
