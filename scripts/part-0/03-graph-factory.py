@@ -4,29 +4,18 @@ from pathlib import Path
 
 from causal_graph_comparison.part_0 import SyntheticGraphFactory, GraphModifier, score_pair
 from causal_graph_comparison.graph_utils import binarize_array
+from configs.config import PathsConfig, DataConfig
 
+PathsConfig.outputs_dir.mkdir(parents=True, exist_ok=True)
 
-# CONFIG
-# number_of_nodes = [4, 16, 64, 100]
-number_of_nodes = [4]
-# difficulty = ["easy", "med_easy", "med_hard", "hard"]
-difficulty = ["easy", "med_easy"]
-edge_modifications = ["delete_edges", "insert_edges", "change_edges", "randomly_modify_lag"]
-node_modifications = ["delete_nodes", "insert_nodes"]
-num_graph_seeds = 1
-num_mod_seeds = 1
-
-out_dir = Path("outputs/part-0")
-out_dir.mkdir(parents=True, exist_ok=True)
-out_csv = out_dir / "results_test.csv"
 
 modifier = GraphModifier()
 rows = []  # collect in memory; write CSV once at the end
 incomplete = 0
 
-for n_nodes in number_of_nodes:
-    for diff in difficulty:
-        for graph_seed in range(num_graph_seeds):
+for n_nodes in DataConfig.number_of_nodes:
+    for diff in DataConfig.difficulty:
+        for graph_seed in range(DataConfig.num_graph_seeds):
             print(("--------------------"))
             print(f"Generating graph for n_nodes={n_nodes}, difficulty={diff}, graph_seed={graph_seed}")
             factory = SyntheticGraphFactory(n_nodes=n_nodes, difficulty=diff, max_time_steps=5)
@@ -43,12 +32,12 @@ for n_nodes in number_of_nodes:
 
             # (mod_list, k_list) pairs — one loop body for edges and nodes
             for mods, ks in (
-                (edge_modifications, ks_edges),
-                (node_modifications, ks_nodes),
+                (DataConfig.edge_modifications, ks_edges),
+                (DataConfig.node_modifications, ks_nodes),
             ):
                 for mod in mods:
                     for k in ks:
-                        for mod_seed in range(num_mod_seeds):
+                        for mod_seed in range(DataConfig.num_mod_seeds):
                             print(f"Applying {mod} operation with k={k} and seed={mod_seed}")
                             try:
                                 mod_graph, gt_graph = modifier.apply(binarized_gt, operation=mod, k=k, seed=mod_seed, mod_val=-1)
@@ -87,6 +76,6 @@ for n_nodes in number_of_nodes:
                             )
                         print("-----------")
             
-pd.DataFrame(rows).to_csv(out_csv, index=False)
-print(f"Wrote {len(rows)} rows to {out_csv}")
+pd.DataFrame(rows).to_csv(PathsConfig.out_csv, index=False)
+print(f"Wrote {len(rows)} rows to {PathsConfig.out_csv}")
 print(f"Incomplete: {incomplete}")

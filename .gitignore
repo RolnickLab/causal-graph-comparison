@@ -166,7 +166,7 @@ wandb/
 # models
 models/
 
-outputs/*.npz
+outputs/
 
 .DS_Store
 
