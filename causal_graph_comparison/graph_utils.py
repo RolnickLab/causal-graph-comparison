@@ -99,6 +99,8 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
 
     Args:
         shape: The shape of the temporal adjacency graph (Num_vars (parent) x Num_vars (child) x Num_time_steps) "parent_child_time" OR (Num_time_steps, Num_var (child), Num_vars (parent)) "time_child_parent"
+        Assumes that the first time dimension is lag 0, not 1 i.e. instantaneous connections ARE present in the temporal adjacency matrix 
+        (so if there are 5 lags, time dim is 6)
         graph: The temporal adjacency graph (Num_vars (parent) x Num_vars (child) x Num_time_steps) OR (Num_time_steps, Num_var (child), Num_vars (parent))
 
     Returns:
@@ -145,10 +147,8 @@ def flatten_temporal_adjacency_graph(shape: str, causal_method: str = None, exp_
     # print(f"num_vars: {num_vars}")
     # print(f"time_steps: {time_steps}")
 
-    new_dims = num_nodes * time_steps 
-
-    # initialize new adjacency matrix with zeros
-    flat_graph = np.zeros((new_dims, new_dims))
+    new_dims = num_nodes * time_steps
+    flat_graph = np.empty((new_dims, new_dims), dtype=np.int8)
 
     # for debugging, uncomment:
     # flattened_graph = np.empty((new_dims, new_dims), dtype='<U10')
@@ -238,6 +238,8 @@ def flatten_temporal_adjacency_graph2(shape: str, graph: np.ndarray) -> np.ndarr
 
     Args:
         shape: The shape of the temporal adjacency graph (Num_vars (parent) x Num_vars (child) x Num_time_steps) "parent_child_time" OR (Num_time_steps, Num_var (child), Num_vars (parent)) "time_child_parent"
+        Assumes that the first time dimension is lag 0, not 1 i.e. instantaneous connections ARE present in the temporal adjacency matrix
+        (so if there are 5 lags, time dim should be 6, with idx 0 being empty array)
         graph: The temporal adjacency graph (Num_vars (parent) x Num_vars (child) x Num_time_steps) OR (Num_time_steps, Num_var (child), Num_vars (parent))
 
     Returns:
@@ -246,9 +248,9 @@ def flatten_temporal_adjacency_graph2(shape: str, graph: np.ndarray) -> np.ndarr
 
     temporal_graph = graph
 
-    print("Initial graph shape:", temporal_graph.shape)
-    print("Initial graph:\n", temporal_graph)
-    print("")
+    # print("Initial graph shape:", temporal_graph.shape)
+    # print("Initial graph:\n", temporal_graph)
+    # print("")
 
     if shape == "parent_child_time":
         num_nodes, _, time_steps = temporal_graph.shape
@@ -257,31 +259,27 @@ def flatten_temporal_adjacency_graph2(shape: str, graph: np.ndarray) -> np.ndarr
     else:
         raise ValueError(f"Invalid shape: {shape}, please choose from 'parent_child_time' or 'time_child_parent'")
 
-    print(f"DBG: Num nodes: {num_nodes}")
-    print(f"DBG: time_steps: {time_steps}")
-
-    new_dims = num_nodes * time_steps 
-
-    # initialize new adjacency matrix with zeros
-    flat_graph = np.zeros((new_dims, new_dims))
+    # print(f"DBG: Num nodes: {num_nodes}")
+    # print(f"DBG: time_steps: {time_steps}")
 
     # for debugging, uncomment:
     # flattened_graph = np.empty((new_dims, new_dims), dtype='<U10')
 
     if shape == "parent_child_time":
-        print("parent_child_time: swapping axis to time_child_parent...")
+        # print("parent_child_time: swapping axis to time_child_parent...")
         temporal_graph = np.swapaxes(temporal_graph, 0, -1)
 
-    for t_lag in range(time_steps): #i
-        for child in range(num_nodes): #j
-            for parent in range(num_nodes): #k
-                # DBG:
-                # print(f"i: {i}, j: {j}, k: {k}")
-                # print(f"graph[i, j, k]: {graph[i, j, k]}")
-                # print(f"new row: {k * time_steps +i}")
-                # print(f"new col: {j * time_steps}")
-                # print("=============")
-                flat_graph[parent * time_steps +t_lag, child * time_steps] = temporal_graph[t_lag, child, parent]
+    # This flattener expects an ABSOLUTE-TIME indexed temporal graph: axis-0 index t means
+    # absolute time t, and index 0 is the contemporaneous / lag-0 slice. 
+    # i.e. assumes index 0 of the time dimension == lag 0, not lag 1
+    # if index 0 == lag 1, MUST prepend an empty lag0 slice first 
+    new_dims = num_nodes * time_steps
+    flat_graph = np.zeros((new_dims, new_dims))
+
+    for t_lag in range(time_steps):
+        for child in range(num_nodes):
+            for parent in range(num_nodes):
+                flat_graph[parent * time_steps + t_lag, child * time_steps] = temporal_graph[t_lag, child, parent]
 
     # keep copy of initial flat graph
     initial_flat_graph = np.copy(flat_graph)
@@ -333,8 +331,8 @@ def flatten_temporal_adjacency_graph2(shape: str, graph: np.ndarray) -> np.ndarr
 
     # populate new adjacency matrix with values from original graph
 
-    print(f"New dims: {new_dims}")
-    print(f"Size of flat_graph: {flat_graph.shape}")
+    # print(f"New dims: {new_dims}")
+    # print(f"Size of flat_graph: {flat_graph.shape}")
 
     # gadjid requires contiguous int8 adjacency matrices
     return np.ascontiguousarray(flat_graph.astype(np.int8))
@@ -361,59 +359,59 @@ def flatten_temporal_adjacency_graph2(shape: str, graph: np.ndarray) -> np.ndarr
 
 # Num_time_steps x Num_var (child)x Num_vars (parent)
 # temporal_test_graph = np.array([
-#     [["x1t0->x1t0", "x2t0->x1t0", "x3t0->x1t0", "x4t0->x1t0"],
-#      ["x1t0->x2t0", "x2t0->x2t0", "x3t0->x2t0", "x4t0->x2t0"],
-#      ["x1t0->x3t0", "x2t0->x3t0", "x3t0->x3t0", "x4t0->x3t0"],
-#      ["x1t0->x4t0", "x2t0->x4t0", "x3t0->x4t0", "x4t0->x4t0"]],
-#     [["x1t1->x1t0", "x2t1->x1t0", "x3t1->x1t0", "x4t1->x1t0"],
-#      ["x1t1->x2t0", "x2t1->x2t0", "x3t1->x2t0", "x4t1->x2t0"],
-#      ["x1t1->x3t0", "x2t1->x3t0", "x3t1->x3t0", "x4t1->x3t0"],
-#      ["x1t1->x4t0", "x2t1->x4t0", "x3t1->x4t0", "x4t1->x4t0"]],
-#     [["x1t2->x1t0", "x2t2->x1t0", "x3t2->x1t0", "x4t2->x1t0"],
-#      ["x1t2->x2t0", "x2t2->x2t0", "x3t2->x2t0", "x4t2->x2t0"],
-#      ["x1t2->x3t0", "x2t2->x3t0", "x3t2->x3t0", "x4t2->x3t0"],
-#      ["x1t2->x4t0", "x2t2->x4t0", "x3t2->x4t0", "x4t2->x4t0"]],
-#     [["x1t3->x1t0", "x2t3->x1t0", "x3t3->x1t0", "x4t3->x1t0"],
-#      ["x1t3->x2t0", "x2t3->x2t0", "x3t3->x2t0", "x4t3->x2t0"],
-#      ["x1t3->x3t0", "x2t3->x3t0", "x3t3->x3t0", "x4t3->x3t0"],
-#      ["x1t3->x4t0", "x2t3->x4t0", "x3t3->x4t0", "x4t3->x4t0"]],
-#     [["x1t4->x1t0", "x2t4->x1t0", "x3t4->x1t0", "x4t4->x1t0"],
-#      ["x1t4->x2t0", "x2t4->x2t0", "x3t4->x2t0", "x4t4->x2t0"],
-#      ["x1t4->x3t0", "x2t4->x3t0", "x3t4->x3t0", "x4t4->x3t0"],
-#      ["x1t4->x4t0", "x2t4->x4t0", "x3t4->x4t0", "x4t4->x4t0"]],
-#     [["x1t5->x1t0", "x2t5->x1t0", "x3t5->x1t0", "x4t5->x1t0"],
-#      ["x1t5->x2t0", "x2t5->x2t0", "x3t5->x2t0", "x4t5->x2t0"],
-#      ["x1t5->x3t0", "x2t5->x3t0", "x3t5->x3t0", "x4t5->x3t0"],
-#      ["x1t5->x4t0", "x2t5->x4t0", "x3t5->x4t0", "x4t5->x4t0"]],
-# ]) 
+#     [["x0t0->x0t0", "x1t0->x0t0", "x2t0->x0t0", "x3t0->x0t0"],
+#      ["x0t0->x1t0", "x1t0->x1t0", "x2t0->x1t0", "x3t0->x1t0"],
+#      ["x0t0->x2t0", "x1t0->x2t0", "x2t0->x2t0", "x3t0->x2t0"],
+#      ["x0t0->x3t0", "x1t0->x3t0", "x2t0->x3t0", "x3t0->x3t0"]],
+#     [["x0t1->x0t0", "x1t1->x0t0", "x2t1->x0t0", "x3t1->x0t0"],
+#      ["x0t1->x1t0", "x1t1->x1t0", "x2t1->x1t0", "x3t1->x1t0"],
+#      ["x0t1->x2t0", "x1t1->x2t0", "x2t1->x2t0", "x3t1->x2t0"],
+#      ["x0t1->x3t0", "x1t1->x3t0", "x2t1->x3t0", "x3t1->x3t0"]],
+#     [["x0t2->x0t0", "x1t2->x0t0", "x2t2->x0t0", "x3t2->x0t0"],
+#      ["x0t2->x1t0", "x1t2->x1t0", "x2t2->x1t0", "x3t2->x1t0"],
+#      ["x0t2->x2t0", "x1t2->x2t0", "x2t2->x2t0", "x3t2->x2t0"],
+#      ["x0t2->x3t0", "x1t2->x3t0", "x2t2->x3t0", "x3t2->x3t0"]],
+#     [["x0t3->x0t0", "x1t3->x0t0", "x2t3->x0t0", "x3t3->x0t0"],
+#      ["x0t3->x1t0", "x1t3->x1t0", "x2t3->x1t0", "x3t3->x1t0"],
+#      ["x0t3->x2t0", "x1t3->x2t0", "x2t3->x2t0", "x3t3->x2t0"],
+#      ["x0t3->x3t0", "x1t3->x3t0", "x2t3->x3t0", "x3t3->x3t0"]],
+#     [["x0t4->x0t0", "x1t4->x0t0", "x2t4->x0t0", "x3t4->x0t0"],
+#      ["x0t4->x1t0", "x1t4->x1t0", "x2t4->x1t0", "x3t4->x1t0"],
+#      ["x0t4->x2t0", "x1t4->x2t0", "x2t4->x2t0", "x3t4->x2t0"],
+#      ["x0t4->x3t0", "x1t4->x3t0", "x2t4->x3t0", "x3t4->x3t0"]],
+#     [["x0t5->x0t0", "x1t5->x0t0", "x2t5->x0t0", "x3t5->x0t0"],
+#      ["x0t5->x1t0", "x1t5->x1t0", "x2t5->x1t0", "x3t5->x1t0"],
+#      ["x0t5->x2t0", "x1t5->x2t0", "x2t5->x2t0", "x3t5->x2t0"],
+#      ["x0t5->x3t0", "x1t5->x3t0", "x2t5->x3t0", "x3t5->x3t0"]],
+# ])
 
 # flattened_temporal_test_graph = flatten_temporal_adjacency_graph(temporal_test_graph)
 
 # desired_flattened_graph = np.array(
-#   [["x0t0->x1t0", "x0t0->x1t1", "x0t0->x1t2", "x0t0->x1t3", "x0t0->x1t4", "x0t0->x1t5", "x0t0->x2t0", "x0t0->x2t1", "x0t0->x2t2", "x0t0->x2t3", "x0t0->x2t4", "x0t0->x2t5", "x0t0->x3t0", "x0t0->x3t1", "x0t0->x3t2", "x0t0->x3t3", "x0t0->x3t4", "x0t0->x3t5", "x0t0->x4t0", "x0t0->x4t1", "x0t0->x4t2", "x0t0->x4t3", "x0t0->x4t4", "x0t0->x4t5"],
-#    ["x0t1->x1t0", "x0t1->x1t1", "x0t1->x1t2", "x0t1->x1t3", "x0t1->x1t4", "x0t1->x1t5", "x0t1->x2t0", "x0t1->x2t1", "x0t1->x2t2", "x0t1->x2t3", "x0t1->x2t4", "x0t1->x2t5", "x0t1->x3t0", "x0t1->x3t1", "x0t1->x3t2", "x0t1->x3t3", "x0t1->x3t4", "x0t1->x3t5", "x0t1->x4t0", "x0t1->x4t1", "x0t1->x4t2", "x0t1->x4t3", "x0t1->x4t4", "x0t1->x4t5"],
-#    ["x0t2->x1t0", "x0t2->x1t1", "x0t2->x1t2", "x0t2->x1t3", "x0t2->x1t4", "x0t2->x1t5", "x0t2->x2t0", "x0t2->x2t1", "x0t2->x2t2", "x0t2->x2t3", "x0t2->x2t4", "x0t2->x2t5", "x0t2->x3t0", "x0t2->x3t1", "x0t2->x3t2", "x0t2->x3t3", "x0t2->x3t4", "x0t2->x3t5", "x0t2->x4t0", "x0t2->x4t1", "x0t2->x4t2", "x0t2->x4t3", "x0t2->x4t4", "x0t2->x4t5"],
-#    ["x0t3->x1t0", "x0t3->x1t1", "x0t3->x1t2", "x0t3->x1t3", "x0t3->x1t4", "x0t3->x1t5", "x0t3->x2t0", "x0t3->x2t1", "x0t3->x2t2", "x0t3->x2t3", "x0t3->x2t4", "x0t3->x2t5", "x0t3->x3t0", "x0t3->x3t1", "x0t3->x3t2", "x0t3->x3t3", "x0t3->x3t4", "x0t3->x3t5", "x0t3->x4t0", "x0t3->x4t1", "x0t3->x4t2", "x0t3->x4t3", "x0t3->x4t4", "x0t3->x4t5"],
-#    ["x0t4->x1t0", "x0t4->x1t1", "x0t4->x1t2", "x0t4->x1t3", "x0t4->x1t4", "x0t4->x1t5", "x0t4->x2t0", "x0t4->x2t1", "x0t4->x2t2", "x0t4->x2t3", "x0t4->x2t4", "x0t4->x2t5", "x0t4->x3t0", "x0t4->x3t1", "x0t4->x3t2", "x0t4->x3t3", "x0t4->x3t4", "x0t4->x3t5", "x0t4->x4t0", "x0t4->x4t1", "x0t4->x4t2", "x0t4->x4t3", "x0t4->x4t4", "x0t4->x4t5"],
-#    ["x0t5->x1t0", "x0t5->x1t1", "x0t5->x1t2", "x0t5->x1t3", "x0t5->x1t4", "x0t5->x1t5", "x0t5->x2t0", "x0t5->x2t1", "x0t5->x2t2", "x0t5->x2t3", "x0t5->x2t4", "x0t5->x2t5", "x0t5->x3t0", "x0t5->x3t1", "x0t5->x3t2", "x0t5->x3t3", "x0t5->x3t4", "x0t5->x3t5", "x0t5->x4t0", "x0t5->x4t1", "x0t5->x4t2", "x0t5->x4t3", "x0t5->x4t4", "x0t5->x4t5"],
-#    ["x1t0->x1t0", "x1t0->x1t1", "x1t0->x1t2", "x1t0->x1t3", "x1t0->x1t4", "x1t0->x1t5", "x1t0->x2t0", "x1t0->x2t1", "x1t0->x2t2", "x1t0->x2t3", "x1t0->x2t4", "x1t0->x2t5", "x1t0->x3t0", "x1t0->x3t1", "x1t0->x3t2", "x1t0->x3t3", "x1t0->x3t4", "x1t0->x3t5", "x1t0->x4t0", "x1t0->x4t1", "x1t0->x4t2", "x1t0->x4t3", "x1t0->x4t4", "x1t0->x4t5"],
-#    ["x1t1->x1t0", "x1t1->x1t1", "x1t1->x1t2", "x1t1->x1t3", "x1t1->x1t4", "x1t1->x1t5", "x1t1->x2t0", "x1t1->x2t1", "x1t1->x2t2", "x1t1->x2t3", "x1t1->x2t4", "x1t1->x2t5", "x1t1->x3t0", "x1t1->x3t1", "x1t1->x3t2", "x1t1->x3t3", "x1t1->x3t4", "x1t1->x3t5", "x1t1->x4t0", "x1t1->x4t1", "x1t1->x4t2", "x1t1->x4t3", "x1t1->x4t4", "x1t1->x4t5"],
-#    ["x1t2->x1t0", "x1t2->x1t1", "x1t2->x1t2", "x1t2->x1t3", "x1t2->x1t4", "x1t2->x1t5", "x1t2->x2t0", "x1t2->x2t1", "x1t2->x2t2", "x1t2->x2t3", "x1t2->x2t4", "x1t2->x2t5", "x1t2->x3t0", "x1t2->x3t1", "x1t2->x3t2", "x1t2->x3t3", "x1t2->x3t4", "x1t2->x3t5", "x1t2->x4t0", "x1t2->x4t1", "x1t2->x4t2", "x1t2->x4t3", "x1t2->x4t4", "x1t2->x4t5"],
-#    ["x1t3->x1t0", "x1t3->x1t1", "x1t3->x1t2", "x1t3->x1t3", "x1t3->x1t4", "x1t3->x1t5", "x1t3->x2t0", "x1t3->x2t1", "x1t3->x2t2", "x1t3->x2t3", "x1t3->x2t4", "x1t3->x2t5", "x1t3->x3t0", "x1t3->x3t1", "x1t3->x3t2", "x1t3->x3t3", "x1t3->x3t4", "x1t3->x3t5", "x1t3->x4t0", "x1t3->x4t1", "x1t3->x4t2", "x1t3->x4t3", "x1t3->x4t4", "x1t3->x4t5"],
-#    ["x1t4->x1t0", "x1t4->x1t1", "x1t4->x1t2", "x1t4->x1t3", "x1t4->x1t4", "x1t4->x1t5", "x1t4->x2t0", "x1t4->x2t1", "x1t4->x2t2", "x1t4->x2t3", "x1t4->x2t4", "x1t4->x2t5", "x1t4->x3t0", "x1t4->x3t1", "x1t4->x3t2", "x1t4->x3t3", "x1t4->x3t4", "x1t4->x3t5", "x1t4->x4t0", "x1t4->x4t1", "x1t4->x4t2", "x1t4->x4t3", "x1t4->x4t4", "x1t4->x4t5"],
-#    ["x1t5->x1t0", "x1t5->x1t1", "x1t5->x1t2", "x1t5->x1t3", "x1t5->x1t4", "x1t5->x1t5", "x1t5->x2t0", "x1t5->x2t1", "x1t5->x2t2", "x1t5->x2t3", "x1t5->x2t4", "x1t5->x2t5", "x1t5->x3t0", "x1t5->x3t1", "x1t5->x3t2", "x1t5->x3t3", "x1t5->x3t4", "x1t5->x3t5", "x1t5->x4t0", "x1t5->x4t1", "x1t5->x4t2", "x1t5->x4t3", "x1t5->x4t4", "x1t5->x4t5"],
-#    ["x2t0->x1t0", "x2t0->x1t1", "x2t0->x1t2", "x2t0->x1t3", "x2t0->x1t4", "x2t0->x1t5", "x2t0->x2t0", "x2t0->x2t1", "x2t0->x2t2", "x2t0->x2t3", "x2t0->x2t4", "x2t0->x2t5", "x2t0->x3t0", "x2t0->x3t1", "x2t0->x3t2", "x2t0->x3t3", "x2t0->x3t4", "x2t0->x3t5", "x2t0->x4t0", "x2t0->x4t1", "x2t0->x4t2", "x2t0->x4t3", "x2t0->x4t4", "x2t0->x4t5"],
-#    ["x2t1->x1t0", "x2t1->x1t1", "x2t1->x1t2", "x2t1->x1t3", "x2t1->x1t4", "x2t1->x1t5", "x2t1->x2t0", "x2t1->x2t1", "x2t1->x2t2", "x2t1->x2t3", "x2t1->x2t4", "x2t1->x2t5", "x2t1->x3t0", "x2t1->x3t1", "x2t1->x3t2", "x2t1->x3t3", "x2t1->x3t4", "x2t1->x3t5", "x2t1->x4t0", "x2t1->x4t1", "x2t1->x4t2", "x2t1->x4t3", "x2t1->x4t4", "x2t1->x4t5"],
-#    ["x2t2->x1t0", "x2t2->x1t1", "x2t2->x1t2", "x2t2->x1t3", "x2t2->x1t4", "x2t2->x1t5", "x2t2->x2t0", "x2t2->x2t1", "x2t2->x2t2", "x2t2->x2t3", "x2t2->x2t4", "x2t2->x2t5", "x2t2->x3t0", "x2t2->x3t1", "x2t2->x3t2", "x2t2->x3t3", "x2t2->x3t4", "x2t2->x3t5", "x2t2->x4t0", "x2t2->x4t1", "x2t2->x4t2", "x2t2->x4t3", "x2t2->x4t4", "x2t2->x4t5"],
-#    ["x2t3->x1t0", "x2t3->x1t1", "x2t3->x1t2", "x2t3->x1t3", "x2t3->x1t4", "x2t3->x1t5", "x2t3->x2t0", "x2t3->x2t1", "x2t3->x2t2", "x2t3->x2t3", "x2t3->x2t4", "x2t3->x2t5", "x2t3->x3t0", "x2t3->x3t1", "x2t3->x3t2", "x2t3->x3t3", "x2t3->x3t4", "x2t3->x3t5", "x2t3->x4t0", "x2t3->x4t1", "x2t3->x4t2", "x2t3->x4t3", "x2t3->x4t4", "x2t3->x4t5"],
-#    ["x2t4->x1t0", "x2t4->x1t1", "x2t4->x1t2", "x2t4->x1t3", "x2t4->x1t4", "x2t4->x1t5", "x2t4->x2t0", "x2t4->x2t1", "x2t4->x2t2", "x2t4->x2t3", "x2t4->x2t4", "x2t4->x2t5", "x2t4->x3t0", "x2t4->x3t1", "x2t4->x3t2", "x2t4->x3t3", "x2t4->x3t4", "x2t4->x3t5", "x2t4->x4t0", "x2t4->x4t1", "x2t4->x4t2", "x2t4->x4t3", "x2t4->x4t4", "x2t4->x4t5"],
-#    ["x2t5->x1t0", "x2t5->x1t1", "x2t5->x1t2", "x2t5->x1t3", "x2t5->x1t4", "x2t5->x1t5", "x2t5->x2t0", "x2t5->x2t1", "x2t5->x2t2", "x2t5->x2t3", "x2t5->x2t4", "x2t5->x2t5", "x2t5->x3t0", "x2t5->x3t1", "x2t5->x3t2", "x2t5->x3t3", "x2t5->x3t4", "x2t5->x3t5", "x2t5->x4t0", "x2t5->x4t1", "x2t5->x4t2", "x2t5->x4t3", "x2t5->x4t4", "x2t5->x4t5"],
-#    ["x3t0->x1t0", "x3t0->x1t1", "x3t0->x1t2", "x3t0->x1t3", "x3t0->x1t4", "x3t0->x1t5", "x3t0->x2t0", "x3t0->x2t1", "x3t0->x2t2", "x3t0->x2t3", "x3t0->x2t4", "x3t0->x2t5", "x3t0->x3t0", "x3t0->x3t1", "x3t0->x3t2", "x3t0->x3t3", "x3t0->x3t4", "x3t0->x3t5", "x3t0->x4t0", "x3t0->x4t1", "x3t0->x4t2", "x3t0->x4t3", "x3t0->x4t4", "x3t0->x4t5"],
-#    ["x3t1->x1t0", "x3t1->x1t1", "x3t1->x1t2", "x3t1->x1t3", "x3t1->x1t4", "x3t1->x1t5", "x3t1->x2t0", "x3t1->x2t1", "x3t1->x2t2", "x3t1->x2t3", "x3t1->x2t4", "x3t1->x2t5", "x3t1->x3t0", "x3t1->x3t1", "x3t1->x3t2", "x3t1->x3t3", "x3t1->x3t4", "x3t1->x3t5", "x3t1->x4t0", "x3t1->x4t1", "x3t1->x4t2", "x3t1->x4t3", "x3t1->x4t4", "x3t1->x4t5"],
-#    ["x3t2->x1t0", "x3t2->x1t1", "x3t2->x1t2", "x3t2->x1t3", "x3t2->x1t4", "x3t2->x1t5", "x3t2->x2t0", "x3t2->x2t1", "x3t2->x2t2", "x3t2->x2t3", "x3t2->x2t4", "x3t2->x2t5", "x3t2->x3t0", "x3t2->x3t1", "x3t2->x3t2", "x3t2->x3t3", "x3t2->x3t4", "x3t2->x3t5", "x3t2->x4t0", "x3t2->x4t1", "x3t2->x4t2", "x3t2->x4t3", "x3t2->x4t4", "x3t2->x4t5"],
-#    ["x3t3->x1t0", "x3t3->x1t1", "x3t3->x1t2", "x3t3->x1t3", "x3t3->x1t4", "x3t3->x1t5", "x3t3->x2t0", "x3t3->x2t1", "x3t3->x2t2", "x3t3->x2t3", "x3t3->x2t4", "x3t3->x2t5", "x3t3->x3t0", "x3t3->x3t1", "x3t3->x3t2", "x3t3->x3t3", "x3t3->x3t4", "x3t3->x3t5", "x3t3->x4t0", "x3t3->x4t1", "x3t3->x4t2", "x3t3->x4t3", "x3t3->x4t4", "x3t3->x4t5"],
-#    ["x3t4->x1t0", "x3t4->x1t1", "x3t4->x1t2", "x3t4->x1t3", "x3t4->x1t4", "x3t4->x1t5", "x3t4->x2t0", "x3t4->x2t1", "x3t4->x2t2", "x3t4->x2t3", "x3t4->x2t4", "x3t4->x2t5", "x3t4->x3t0", "x3t4->x3t1", "x3t4->x3t2", "x3t4->x3t3", "x3t4->x3t4", "x3t4->x3t5", "x3t4->x4t0", "x3t4->x4t1", "x3t4->x4t2", "x3t4->x4t3", "x3t4->x4t4", "x3t4->x4t5"],
-#    ["x3t5->x1t0", "x3t5->x1t1", "x3t5->x1t2", "x3t5->x1t3", "x3t5->x1t4", "x3t5->x1t5", "x3t5->x2t0", "x3t5->x2t1", "x3t5->x2t2", "x3t5->x2t3", "x3t5->x2t4", "x3t5->x2t5", "x3t5->x3t0", "x3t5->x3t1", "x3t5->x3t2", "x3t5->x3t3", "x3t5->x3t4", "x3t5->x3t5", "x3t5->x4t0", "x3t5->x4t1", "x3t5->x4t2", "x3t5->x4t3", "x3t5->x4t4", "x3t5->x4t5"],
+#   [["x0t0->x0t0", "x0t0->x0t1", "x0t0->x0t2", "x0t0->x0t3", "x0t0->x0t4", "x0t0->x0t5", "x0t0->x1t0", "x0t0->x1t1", "x0t0->x1t2", "x0t0->x1t3", "x0t0->x1t4", "x0t0->x1t5", "x0t0->x2t0", "x0t0->x2t1", "x0t0->x2t2", "x0t0->x2t3", "x0t0->x2t4", "x0t0->x2t5", "x0t0->x3t0", "x0t0->x3t1", "x0t0->x3t2", "x0t0->x3t3", "x0t0->x3t4", "x0t0->x3t5"],
+#    ["x0t1->x0t0", "x0t1->x0t1", "x0t1->x0t2", "x0t1->x0t3", "x0t1->x0t4", "x0t1->x0t5", "x0t1->x1t0", "x0t1->x1t1", "x0t1->x1t2", "x0t1->x1t3", "x0t1->x1t4", "x0t1->x1t5", "x0t1->x2t0", "x0t1->x2t1", "x0t1->x2t2", "x0t1->x2t3", "x0t1->x2t4", "x0t1->x2t5", "x0t1->x3t0", "x0t1->x3t1", "x0t1->x3t2", "x0t1->x3t3", "x0t1->x3t4", "x0t1->x3t5"],
+#    ["x0t2->x0t0", "x0t2->x0t1", "x0t2->x0t2", "x0t2->x0t3", "x0t2->x0t4", "x0t2->x0t5", "x0t2->x1t0", "x0t2->x1t1", "x0t2->x1t2", "x0t2->x1t3", "x0t2->x1t4", "x0t2->x1t5", "x0t2->x2t0", "x0t2->x2t1", "x0t2->x2t2", "x0t2->x2t3", "x0t2->x2t4", "x0t2->x2t5", "x0t2->x3t0", "x0t2->x3t1", "x0t2->x3t2", "x0t2->x3t3", "x0t2->x3t4", "x0t2->x3t5"],
+#    ["x0t3->x0t0", "x0t3->x0t1", "x0t3->x0t2", "x0t3->x0t3", "x0t3->x0t4", "x0t3->x0t5", "x0t3->x1t0", "x0t3->x1t1", "x0t3->x1t2", "x0t3->x1t3", "x0t3->x1t4", "x0t3->x1t5", "x0t3->x2t0", "x0t3->x2t1", "x0t3->x2t2", "x0t3->x2t3", "x0t3->x2t4", "x0t3->x2t5", "x0t3->x3t0", "x0t3->x3t1", "x0t3->x3t2", "x0t3->x3t3", "x0t3->x3t4", "x0t3->x3t5"],
+#    ["x0t4->x0t0", "x0t4->x0t1", "x0t4->x0t2", "x0t4->x0t3", "x0t4->x0t4", "x0t4->x0t5", "x0t4->x1t0", "x0t4->x1t1", "x0t4->x1t2", "x0t4->x1t3", "x0t4->x1t4", "x0t4->x1t5", "x0t4->x2t0", "x0t4->x2t1", "x0t4->x2t2", "x0t4->x2t3", "x0t4->x2t4", "x0t4->x2t5", "x0t4->x3t0", "x0t4->x3t1", "x0t4->x3t2", "x0t4->x3t3", "x0t4->x3t4", "x0t4->x3t5"],
+#    ["x0t5->x0t0", "x0t5->x0t1", "x0t5->x0t2", "x0t5->x0t3", "x0t5->x0t4", "x0t5->x0t5", "x0t5->x1t0", "x0t5->x1t1", "x0t5->x1t2", "x0t5->x1t3", "x0t5->x1t4", "x0t5->x1t5", "x0t5->x2t0", "x0t5->x2t1", "x0t5->x2t2", "x0t5->x2t3", "x0t5->x2t4", "x0t5->x2t5", "x0t5->x3t0", "x0t5->x3t1", "x0t5->x3t2", "x0t5->x3t3", "x0t5->x3t4", "x0t5->x3t5"],
+#    ["x1t0->x0t0", "x1t0->x0t1", "x1t0->x0t2", "x1t0->x0t3", "x1t0->x0t4", "x1t0->x0t5", "x1t0->x1t0", "x1t0->x1t1", "x1t0->x1t2", "x1t0->x1t3", "x1t0->x1t4", "x1t0->x1t5", "x1t0->x2t0", "x1t0->x2t1", "x1t0->x2t2", "x1t0->x2t3", "x1t0->x2t4", "x1t0->x2t5", "x1t0->x3t0", "x1t0->x3t1", "x1t0->x3t2", "x1t0->x3t3", "x1t0->x3t4", "x1t0->x3t5"],
+#    ["x1t1->x0t0", "x1t1->x0t1", "x1t1->x0t2", "x1t1->x0t3", "x1t1->x0t4", "x1t1->x0t5", "x1t1->x1t0", "x1t1->x1t1", "x1t1->x1t2", "x1t1->x1t3", "x1t1->x1t4", "x1t1->x1t5", "x1t1->x2t0", "x1t1->x2t1", "x1t1->x2t2", "x1t1->x2t3", "x1t1->x2t4", "x1t1->x2t5", "x1t1->x3t0", "x1t1->x3t1", "x1t1->x3t2", "x1t1->x3t3", "x1t1->x3t4", "x1t1->x3t5"],
+#    ["x1t2->x0t0", "x1t2->x0t1", "x1t2->x0t2", "x1t2->x0t3", "x1t2->x0t4", "x1t2->x0t5", "x1t2->x1t0", "x1t2->x1t1", "x1t2->x1t2", "x1t2->x1t3", "x1t2->x1t4", "x1t2->x1t5", "x1t2->x2t0", "x1t2->x2t1", "x1t2->x2t2", "x1t2->x2t3", "x1t2->x2t4", "x1t2->x2t5", "x1t2->x3t0", "x1t2->x3t1", "x1t2->x3t2", "x1t2->x3t3", "x1t2->x3t4", "x1t2->x3t5"],
+#    ["x1t3->x0t0", "x1t3->x0t1", "x1t3->x0t2", "x1t3->x0t3", "x1t3->x0t4", "x1t3->x0t5", "x1t3->x1t0", "x1t3->x1t1", "x1t3->x1t2", "x1t3->x1t3", "x1t3->x1t4", "x1t3->x1t5", "x1t3->x2t0", "x1t3->x2t1", "x1t3->x2t2", "x1t3->x2t3", "x1t3->x2t4", "x1t3->x2t5", "x1t3->x3t0", "x1t3->x3t1", "x1t3->x3t2", "x1t3->x3t3", "x1t3->x3t4", "x1t3->x3t5"],
+#    ["x1t4->x0t0", "x1t4->x0t1", "x1t4->x0t2", "x1t4->x0t3", "x1t4->x0t4", "x1t4->x0t5", "x1t4->x1t0", "x1t4->x1t1", "x1t4->x1t2", "x1t4->x1t3", "x1t4->x1t4", "x1t4->x1t5", "x1t4->x2t0", "x1t4->x2t1", "x1t4->x2t2", "x1t4->x2t3", "x1t4->x2t4", "x1t4->x2t5", "x1t4->x3t0", "x1t4->x3t1", "x1t4->x3t2", "x1t4->x3t3", "x1t4->x3t4", "x1t4->x3t5"],
+#    ["x1t5->x0t0", "x1t5->x0t1", "x1t5->x0t2", "x1t5->x0t3", "x1t5->x0t4", "x1t5->x0t5", "x1t5->x1t0", "x1t5->x1t1", "x1t5->x1t2", "x1t5->x1t3", "x1t5->x1t4", "x1t5->x1t5", "x1t5->x2t0", "x1t5->x2t1", "x1t5->x2t2", "x1t5->x2t3", "x1t5->x2t4", "x1t5->x2t5", "x1t5->x3t0", "x1t5->x3t1", "x1t5->x3t2", "x1t5->x3t3", "x1t5->x3t4", "x1t5->x3t5"],
+#    ["x1t5->x0t0", "x1t5->x0t1", "x1t5->x0t2", "x1t5->x0t3", "x1t5->x0t4", "x1t5->x0t5", "x1t5->x1t0", "x1t5->x1t1", "x1t5->x1t2", "x1t5->x1t3", "x1t5->x1t4", "x1t5->x1t5", "x1t5->x2t0", "x1t5->x2t1", "x1t5->x2t2", "x1t5->x2t3", "x1t5->x2t4", "x1t5->x2t5", "x1t5->x3t0", "x1t5->x3t1", "x1t5->x3t2", "x1t5->x3t3", "x1t5->x3t4", "x1t5->x3t5"],
+#    ["x2t0->x0t0", "x2t0->x0t1", "x2t0->x0t2", "x2t0->x0t3", "x2t0->x0t4", "x2t0->x0t5", "x2t0->x1t0", "x2t0->x1t1", "x2t0->x1t2", "x2t0->x1t3", "x2t0->x1t4", "x2t0->x1t5", "x2t0->x2t0", "x2t0->x2t1", "x2t0->x2t2", "x2t0->x2t3", "x2t0->x2t4", "x2t0->x2t5", "x2t0->x3t0", "x2t0->x3t1", "x2t0->x3t2", "x2t0->x3t3", "x2t0->x3t4", "x2t0->x3t5"],
+#    ["x2t1->x0t0", "x2t1->x0t1", "x2t1->x0t2", "x2t1->x0t3", "x2t1->x0t4", "x2t1->x0t5", "x2t1->x1t0", "x2t1->x1t1", "x2t1->x1t2", "x2t1->x1t3", "x2t1->x1t4", "x2t1->x1t5", "x2t1->x2t0", "x2t1->x2t1", "x2t1->x2t2", "x2t1->x2t3", "x2t1->x2t4", "x2t1->x2t5", "x2t1->x3t0", "x2t1->x3t1", "x2t1->x3t2", "x2t1->x3t3", "x2t1->x3t4", "x2t1->x3t5"],
+#    ["x2t2->x0t0", "x2t2->x0t1", "x2t2->x0t2", "x2t2->x0t3", "x2t2->x0t4", "x2t2->x0t5", "x2t2->x1t0", "x2t2->x1t1", "x2t2->x1t2", "x2t2->x1t3", "x2t2->x1t4", "x2t2->x1t5", "x2t2->x2t0", "x2t2->x2t1", "x2t2->x2t2", "x2t2->x2t3", "x2t2->x2t4", "x2t2->x2t5", "x2t2->x3t0", "x2t2->x3t1", "x2t2->x3t2", "x2t2->x3t3", "x2t2->x3t4", "x2t2->x3t5"],
+#    ["x2t3->x0t0", "x2t3->x0t1", "x2t3->x0t2", "x2t3->x0t3", "x2t3->x0t4", "x2t3->x0t5", "x2t3->x1t0", "x2t3->x1t1", "x2t3->x1t2", "x2t3->x1t3", "x2t3->x1t4", "x2t3->x1t5", "x2t3->x2t0", "x2t3->x2t1", "x2t3->x2t2", "x2t3->x2t3", "x2t3->x2t4", "x2t3->x2t5", "x2t3->x3t0", "x2t3->x3t1", "x2t3->x3t2", "x2t3->x3t3", "x2t3->x3t4", "x2t3->x3t5"],
+#    ["x2t4->x0t0", "x2t4->x0t1", "x2t4->x0t2", "x2t4->x0t3", "x2t4->x0t4", "x2t4->x0t5", "x2t4->x1t0", "x2t4->x1t1", "x2t4->x1t2", "x2t4->x1t3", "x2t4->x1t4", "x2t4->x1t5", "x2t4->x2t0", "x2t4->x2t1", "x2t4->x2t2", "x2t4->x2t3", "x2t4->x2t4", "x2t4->x2t5", "x2t4->x3t0", "x2t4->x3t1", "x2t4->x3t2", "x2t4->x3t3", "x2t4->x3t4", "x2t4->x3t5"],
+#    ["x2t5->x0t0", "x2t5->x0t1", "x2t5->x0t2", "x2t5->x0t3", "x2t5->x0t4", "x2t5->x0t5", "x2t5->x1t0", "x2t5->x1t1", "x2t5->x1t2", "x2t5->x1t3", "x2t5->x1t4", "x2t5->x1t5", "x2t5->x2t0", "x2t5->x2t1", "x2t5->x2t2", "x2t5->x2t3", "x2t5->x2t4", "x2t5->x2t5", "x2t5->x3t0", "x2t5->x3t1", "x2t5->x3t2", "x2t5->x3t3", "x2t5->x3t4", "x2t5->x3t5"],
+#    ["x3t0->x0t0", "x3t0->x0t1", "x3t0->x0t2", "x3t0->x0t3", "x3t0->x0t4", "x3t0->x0t5", "x3t0->x1t0", "x3t0->x1t1", "x3t0->x1t2", "x3t0->x1t3", "x3t0->x1t4", "x3t0->x1t5", "x3t0->x2t0", "x3t0->x2t1", "x3t0->x2t2", "x3t0->x2t3", "x3t0->x2t4", "x3t0->x2t5", "x3t0->x3t0", "x3t0->x3t1", "x3t0->x3t2", "x3t0->x3t3", "x3t0->x3t4", "x3t0->x3t5"],
+#    ["x3t1->x0t0", "x3t1->x0t1", "x3t1->x0t2", "x3t1->x0t3", "x3t1->x0t4", "x3t1->x0t5", "x3t1->x1t0", "x3t1->x1t1", "x3t1->x1t2", "x3t1->x1t3", "x3t1->x1t4", "x3t1->x1t5", "x3t1->x2t0", "x3t1->x2t1", "x3t1->x2t2", "x3t1->x2t3", "x3t1->x2t4", "x3t1->x2t5", "x3t1->x3t0", "x3t1->x3t1", "x3t1->x3t2", "x3t1->x3t3", "x3t1->x3t4", "x3t1->x3t5"],
+#    ["x3t2->x0t0", "x3t2->x0t1", "x3t2->x0t2", "x3t2->x0t3", "x3t2->x0t4", "x3t2->x0t5", "x3t2->x1t0", "x3t2->x1t1", "x3t2->x1t2", "x3t2->x1t3", "x3t2->x2t4", "x3t2->x1t5", "x3t2->x2t0", "x3t2->x2t1", "x3t2->x2t2", "x3t2->x2t3", "x3t2->x2t4", "x3t2->x2t5", "x3t2->x3t0", "x3t2->x3t1", "x3t2->x3t2", "x3t2->x3t3", "x3t2->x3t4", "x3t2->x3t5"],
+#    ["x3t3->x0t0", "x3t3->x0t1", "x3t4->x0t2", "x3t4->x0t3", "x3t4->x0t4", "x3t4->x0t5", "x3t4->x1t0", "x3t4->x1t1", "x3t4->x1t2", "x3t4->x1t3", "x3t4->x1t4", "x3t4->x1t5", "x3t4->x2t0", "x3t4->x2t1", "x3t4->x2t2", "x3t4->x2t3", "x3t4->x2t4", "x3t4->x2t5", "x3t4->x3t0", "x3t4->x3t1", "x3t4->x3t2", "x3t4->x3t3", "x3t4->x3t4", "x3t4->x3t5"],
+#    ["x3t5->x0t0", "x3t5->x0t1", "x3t5->x0t2", "x3t5->x0t3", "x3t5->x0t4", "x3t5->x0t5", "x3t5->x1t0", "x3t5->x1t1", "x3t5->x1t2", "x3t5->x1t3", "x3t5->x1t4", "x3t5->x1t5", "x3t5->x2t0", "x3t5->x2t1", "x3t5->x2t2", "x3t5->x2t3", "x3t5->x2t4", "x3t5->x2t5", "x3t5->x3t0", "x3t5->x3t1", "x3t5->x3t2", "x3t5->x3t3", "x3t5->x3t4", "x3t5->x3t5"],
 #    ])
 
 if __name__ == "__main__":

@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import networkx as nx
 import random
+from gadjid import parent_aid, shd, sid, oset_aid
 
 from climatem.synthetic_data.generate_savar_datasets import create_links_coeffs
 from climatem.synthetic_data.savar import dict_to_matrix
 from climatem.synthetic_data.utils import check_stability
 from causal_graph_comparison.graph_utils import binarize_array, flatten_temporal_adjacency_graph2
+from climatem.model.metrics import f1_score
 
 class SyntheticGraphFactory:
     """
@@ -23,13 +25,13 @@ class SyntheticGraphFactory:
         self.n_nodes = n_nodes
         self.difficulty = difficulty
         self.max_time_steps = max_time_steps
-        self.denom = 2
 
     def generate_links_coeffs(self, seed_graph: int) -> np.ndarray:
         np.random.seed(seed_graph)
 
+        denominator = 2
         if self.n_nodes <= 4:
-            prob = 1 # set prob = 1 if N <= 4, meaning every node is connected to every other node at one time step
+            denominator = 1 # set prob = 1 if N <= 4, meaning every node is connected to every other node at one time step
 
         # This is the probabiliity of having a link between latent k and j, with k different from j. latents always have one link with themselves at a previous time.
         if self.difficulty == "easy":
@@ -39,7 +41,7 @@ class SyntheticGraphFactory:
         elif self.difficulty == "med_hard":
             prob = 2 / (self.n_nodes - 1) #3N / N^2*tau
         elif self.difficulty == "hard":
-            prob = 1 / self.denom #N + N*(N-1)/2 / N^2*tau
+            prob = 1 / denominator #N + N*(N-1)/2 / N^2*tau
 
         links_coeffs = create_links_coeffs(n_modes=self.n_nodes, tau=self.max_time_steps, prob_edge=prob, difficulty=self.difficulty)
         return links_coeffs
@@ -114,6 +116,10 @@ class GraphModifier:
             # insert k edges to the graph
             graph = self.insert_edges(graph, k, rng, non_edges)
 
+        elif operation == "change_edges":
+            # change the edge of k edges to the graph to a new node
+            graph = self.change_edges(graph, k, rng, edges, non_edges)
+
         elif operation == "delete_nodes":
             # delete k nodes from the graph
             graph = self.delete_nodes(graph, k, num_nodes, rng)
@@ -154,6 +160,7 @@ class GraphModifier:
 
         for edge in edges_to_delete:
             graph[edge[0], edge[1], edge[2]] = 0
+            print(f"Deleted edge: {edge}")
         return graph
 
     def insert_edges(self, graph: np.ndarray, k: int, rng: np.random.Generator, non_edges: list[tuple[int, int, int]]) -> np.ndarray:
@@ -167,6 +174,35 @@ class GraphModifier:
 
         for edge in edges_to_insert:
             graph[edge[0], edge[1], edge[2]] = 1
+            print(f"Inserted edge: {edge}")
+        return graph
+
+    def change_edges(self, graph: np.ndarray, k: int, rng: np.random.Generator, edges: list[tuple[int, int, int]], non_edges: list[tuple[int, int, int]]) -> np.ndarray:
+        '''
+        Change the edge of k edges to the graph to a new node.
+        Change only child, keep time and parent the same.
+        '''
+        self.check_k(k, len(edges), "edges")
+        
+        idxs_to_change = rng.choice(len(edges), size=k, replace=False)
+        edges_to_change = [edges[i] for i in idxs_to_change]
+        
+        for edge in edges_to_change:
+            # Narrow non_edges to candidates with same time (edge[0]) and parent (edge[2]),
+            # i.e., only allow changing the child, not the time or parent.
+            eligible_non_edges = [
+                ne for ne in non_edges if ne[0] == edge[0] and ne[2] == edge[2]
+            ]
+            if not eligible_non_edges:
+                raise ValueError(f"Cannot change edge {edge} because no eligible non-edges found")
+            new_node = eligible_non_edges[int(rng.integers(len(eligible_non_edges)))]
+
+            # remove node from non_edges
+            non_edges.remove(new_node)
+   
+            graph[edge[0], edge[1], edge[2]] = 0
+            graph[edge[0], new_node[1], edge[2]] = 1
+            print(f"Changed edge: {edge} to ({edge[0]}, {new_node[1]}, {edge[2]})")
         return graph
 
     def delete_nodes(self, graph: np.ndarray, k: int, num_nodes: int, rng: np.random.Generator) -> np.ndarray:
@@ -179,6 +215,7 @@ class GraphModifier:
         for node in nodes_to_delete:
             graph[:, node, :] = 0
             graph[:, :, node] = 0
+            print(f"Deleted node: {node}")
         return graph
         
     def insert_nodes(self, graph: np.ndarray, k: int, num_nodes: int, max_time_steps: int, rng: np.random.Generator) -> np.ndarray:
@@ -192,16 +229,22 @@ class GraphModifier:
         for _ in range(k):
             n = new_graph.shape[1] 
             temp_graph = np.zeros((new_graph.shape[0], n + 1, n + 1))
+            # print(f"temp_graph: {temp_graph.shape}")
             temp_graph[:, :n, :n] = new_graph
+            # print(f"temp_graph: {temp_graph}")
 
             # eligible edges are in the new column & row added to the graph
             eligible_edges = [(i, n) for i in range(n)] + [(n, i) for i in range(n)]
-            eligible_edges = list(set(eligible_edges))
+            eligible_edges = list(set(eligible_edges)) # remove duplicates
+            # print(f"eligible_edges: {eligible_edges}")
 
             random_time_step = rng.integers(0, max_time_steps)
+            # print(f"random_time_step: {random_time_step}")
             new_child, new_parent = eligible_edges[rng.choice(len(eligible_edges))]
 
             temp_graph[random_time_step, new_child, new_parent] = 1
+            print(f"Inserted node {new_child} at time step {random_time_step} with parent {new_parent}")
+
             new_graph = temp_graph.copy()
 
         new_gt = np.zeros_like(new_graph)
@@ -220,11 +263,16 @@ class GraphModifier:
         edges_to_modify = [edges[i] for i in idxs_to_modify]
 
         for edge in edges_to_modify:
+            print(f"edge: {edge}")
+            print(f"mod_val: {mod_val}")
+            print(f"max_time_steps: {max_time_steps}")
+            print(f"new_lag: {max(0, min(edge[0] + mod_val, max_time_steps - 1))}")
             new_lag = max(0, min(edge[0] + mod_val, max_time_steps - 1))
+            print(f"Attempting to modify lag of edge {edge} to time step {new_lag}")
 
             # make sure new_lag is not already taken
             if graph[new_lag, edge[1], edge[2]] != 0:
-                raise ValueError(f"Cannot modify lag of edge {edge} to time step{new_lag} because it is already taken")
+                raise ValueError(f"Cannot modify lag of edge {edge} to time step {new_lag} because it is already taken")
             else:
                 graph[new_lag, edge[1], edge[2]] = 1
 
@@ -255,6 +303,8 @@ class GraphModifier:
 
             graph[edge[0], edge[1], edge[2]] = 0
             graph[new_lag, edge[1], edge[2]] = 1
+
+            print(f"Modified lag of edge {edge} to time step {new_lag}")
 
         return graph
 
@@ -292,20 +342,45 @@ class GraphModifier:
             raise ValueError(f"Cannot apply {k} modifications to a graph with {max_val} {operation}")
         return True
 
-# graph = binarize_array(graph)
-# graph = flatten_temporal_adjacency_graph2(shape="time_child_parent", graph=graph)
 
+def score_pair(graph_gt: np.ndarray, graph_mod: np.ndarray) -> float:
+    '''
+    Score the pair of graphs.
+    Returns:
+        f1: float
+        shd: float
+        sid: float
+        parent_aid: float
+        oset_aid: float
+    '''
 
+    # check if graphs are the same shape
+    if graph_mod.shape != graph_gt.shape:
+        raise ValueError("Graphs must be the same shape")
+
+    # The graphs are initially lag-1 indexed ([time, child, parent] where time index 0 == lag 1),
+    # but flatten_temporal_adjacency_graph2 expects an graph where
+    # index 0 is the (empty) contemporaneous / lag-0 slice. 
+    # Prepending that lag-0 slice here, AFTER modifications 
     
-# def generate_dataset(self, n_graphs: int, seed_graphs: list[int]) -> list[np.ndarray]:
-#     graphs = []
-#     for seed_graph in seed_graphs:
-#         graph = self.generate(seed_graph)
-#         graphs.append(graph)
-#     return graphs
+    num_nodes = graph_gt.shape[1]
+    graph_gt = np.concatenate([np.zeros((1, num_nodes, num_nodes), dtype=graph_gt.dtype), graph_gt], axis=0)
+    graph_mod = np.concatenate([np.zeros((1, num_nodes, num_nodes), dtype=graph_mod.dtype), graph_mod], axis=0)
 
+    # flatten graph
+    flat_mod = flatten_temporal_adjacency_graph2(shape="time_child_parent", graph=graph_mod)
+    flat_gt = flatten_temporal_adjacency_graph2(shape="time_child_parent", graph=graph_gt)
 
+    print(f"flat_mod: {flat_mod}")
+    print("--------------------------------")
+    print(f"flat_gt: {flat_gt}")
 
+    # apply causal metrics
+    f1 = f1_score(flat_mod, flat_gt)
+    shd_score = shd(flat_gt, flat_mod)
     
+    sid_score = sid(flat_gt, flat_mod, edge_direction="from row to column")
+    parent_aid_score = parent_aid(flat_gt, flat_mod, edge_direction="from row to column")
+    oset_aid_score = oset_aid(flat_gt, flat_mod, edge_direction="from row to column")
 
-    
+    return f1, shd_score, sid_score, parent_aid_score, oset_aid_score
