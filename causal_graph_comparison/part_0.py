@@ -160,7 +160,7 @@ class GraphModifier:
 
         for edge in edges_to_delete:
             graph[edge[0], edge[1], edge[2]] = 0
-            print(f"Deleted edge: {edge}")
+            # print(f"Deleted edge: {edge}")
         return graph
 
     def insert_edges(self, graph: np.ndarray, k: int, rng: np.random.Generator, non_edges: list[tuple[int, int, int]]) -> np.ndarray:
@@ -174,7 +174,7 @@ class GraphModifier:
 
         for edge in edges_to_insert:
             graph[edge[0], edge[1], edge[2]] = 1
-            print(f"Inserted edge: {edge}")
+            # print(f"Inserted edge: {edge}")
         return graph
 
     def change_edges(self, graph: np.ndarray, k: int, rng: np.random.Generator, edges: list[tuple[int, int, int]], non_edges: list[tuple[int, int, int]]) -> np.ndarray:
@@ -202,7 +202,7 @@ class GraphModifier:
    
             graph[edge[0], edge[1], edge[2]] = 0
             graph[edge[0], new_node[1], edge[2]] = 1
-            print(f"Changed edge: {edge} to ({edge[0]}, {new_node[1]}, {edge[2]})")
+            # print(f"Changed edge: {edge} to ({edge[0]}, {new_node[1]}, {edge[2]})")
         return graph
 
     def delete_nodes(self, graph: np.ndarray, k: int, num_nodes: int, rng: np.random.Generator) -> np.ndarray:
@@ -215,7 +215,7 @@ class GraphModifier:
         for node in nodes_to_delete:
             graph[:, node, :] = 0
             graph[:, :, node] = 0
-            print(f"Deleted node: {node}")
+            # print(f"Deleted node: {node}")
         return graph
         
     def insert_nodes(self, graph: np.ndarray, k: int, num_nodes: int, max_time_steps: int, rng: np.random.Generator) -> np.ndarray:
@@ -243,7 +243,7 @@ class GraphModifier:
             new_child, new_parent = eligible_edges[rng.choice(len(eligible_edges))]
 
             temp_graph[random_time_step, new_child, new_parent] = 1
-            print(f"Inserted node {new_child} at time step {random_time_step} with parent {new_parent}")
+            # print(f"Inserted node {new_child} at time step {random_time_step} with parent {new_parent}")
 
             new_graph = temp_graph.copy()
 
@@ -263,12 +263,12 @@ class GraphModifier:
         edges_to_modify = [edges[i] for i in idxs_to_modify]
 
         for edge in edges_to_modify:
-            print(f"edge: {edge}")
-            print(f"mod_val: {mod_val}")
-            print(f"max_time_steps: {max_time_steps}")
-            print(f"new_lag: {max(0, min(edge[0] + mod_val, max_time_steps - 1))}")
+            # print(f"edge: {edge}")
+            # print(f"mod_val: {mod_val}")
+            # print(f"max_time_steps: {max_time_steps}")
+            # print(f"new_lag: {max(0, min(edge[0] + mod_val, max_time_steps - 1))}")
             new_lag = max(0, min(edge[0] + mod_val, max_time_steps - 1))
-            print(f"Attempting to modify lag of edge {edge} to time step {new_lag}")
+            # print(f"Attempting to modify lag of edge {edge} to time step {new_lag}")
 
             # make sure new_lag is not already taken
             if graph[new_lag, edge[1], edge[2]] != 0:
@@ -304,7 +304,7 @@ class GraphModifier:
             graph[edge[0], edge[1], edge[2]] = 0
             graph[new_lag, edge[1], edge[2]] = 1
 
-            print(f"Modified lag of edge {edge} to time step {new_lag}")
+            # print(f"Modified lag of edge {edge} to time step {new_lag}")
 
         return graph
 
@@ -362,7 +362,7 @@ def score_pair(graph_gt: np.ndarray, graph_mod: np.ndarray) -> float:
     # but flatten_temporal_adjacency_graph2 expects an graph where
     # index 0 is the (empty) contemporaneous / lag-0 slice. 
     # Prepending that lag-0 slice here, AFTER modifications 
-    
+
     num_nodes = graph_gt.shape[1]
     graph_gt = np.concatenate([np.zeros((1, num_nodes, num_nodes), dtype=graph_gt.dtype), graph_gt], axis=0)
     graph_mod = np.concatenate([np.zeros((1, num_nodes, num_nodes), dtype=graph_mod.dtype), graph_mod], axis=0)
@@ -371,9 +371,9 @@ def score_pair(graph_gt: np.ndarray, graph_mod: np.ndarray) -> float:
     flat_mod = flatten_temporal_adjacency_graph2(shape="time_child_parent", graph=graph_mod)
     flat_gt = flatten_temporal_adjacency_graph2(shape="time_child_parent", graph=graph_gt)
 
-    print(f"flat_mod: {flat_mod}")
-    print("--------------------------------")
-    print(f"flat_gt: {flat_gt}")
+    # print(f"flat_mod: {flat_mod}")
+    # print("--------------------------------")
+    # print(f"flat_gt: {flat_gt}")
 
     # apply causal metrics
     f1 = f1_score(flat_mod, flat_gt)

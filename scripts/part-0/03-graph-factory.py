@@ -8,7 +8,6 @@ from configs.config import PathsConfig, DataConfig
 
 PathsConfig.outputs_dir.mkdir(parents=True, exist_ok=True)
 
-
 modifier = GraphModifier()
 rows = []  # collect in memory; write CSV once at the end
 incomplete = 0
@@ -23,7 +22,7 @@ for n_nodes in DataConfig.number_of_nodes:
             n_edges = np.count_nonzero(gt)
             print(f"n_edges: {n_edges}")
             binarized_gt = binarize_array(gt)
-            print(f"binarized_gt: {binarized_gt}")
+            # print(f"binarized_gt: {binarized_gt}")
 
             ks_edges = list({max(1, int(round(val * n_edges))) for val in [1/n_edges, 2/n_edges, 3/n_edges, 1/2, 1/4, 1/8, 1/16, 1/64]})
             ks_nodes = list({max(1, int(round(val * n_nodes))) for val in [1/n_nodes, 2/n_nodes, 3/n_nodes, 1/2, 1/4, 1/8, 1/16, 1/64]})
@@ -38,14 +37,14 @@ for n_nodes in DataConfig.number_of_nodes:
                 for mod in mods:
                     for k in ks:
                         for mod_seed in range(DataConfig.num_mod_seeds):
-                            print(f"Applying {mod} operation with k={k} and seed={mod_seed}")
+                            print(f"N: {n_nodes}, Difficulty: {diff}, Graph Seed: {graph_seed}, Mod: {mod}, K: {k}, Mod Seed: {mod_seed}")
                             try:
                                 mod_graph, gt_graph = modifier.apply(binarized_gt, operation=mod, k=k, seed=mod_seed, mod_val=-1)
                             except ValueError as e:
                                 print(f"Error applying {mod} operation with k={k} and seed={mod_seed}: {e}")
                                 incomplete += 1
                                 continue
-                            print(f"mod_graph: {mod_graph}")
+                            # print(f"mod_graph: {mod_graph}")
                             f1, shd_score, sid_score, parent_aid_score, oset_aid_score = score_pair(
                                 gt_graph, mod_graph
                             )

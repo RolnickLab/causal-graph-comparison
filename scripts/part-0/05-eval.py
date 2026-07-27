@@ -5,227 +5,255 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from configs.config import DataConfig, PathsConfig
+
 # read the CSV file
-df = pd.read_csv("outputs/part-0/results_test.csv")
+df = pd.read_csv(PathsConfig.out_csv)
 
-# print the first 5 rows
 print(df.head())
 
-# compute k ratio using k/n_edges if mod has edge in it, otherwise using k/n_nodes if mod has the word "node" in it
-df["k_ratio"] = df.apply(lambda x: x["k"] / x["n_edges"] if "edge" in x["mod"] else x["k"] / x["n_nodes"], axis=1)
-print(df["k_ratio"])
+# k_ratio: edge mods → k/n_edges; node mods → k/n_nodes
+edge_mods = set(DataConfig.edge_modifications)
+df["k_ratio"] = df.apply(
+    lambda x: x["k"] / x["n_edges"] if x["mod"] in edge_mods else x["k"] / x["n_nodes"],
+    axis=1,
+)
 
-# drop following rows: k, n_edges, shd_count, sid_count, parent_aid_count, oset_aid_count
 df = df.drop(columns=["k", "n_edges", "shd_count", "sid_count", "parent_aid_count", "oset_aid_count"])
-print(df.head())
 
-# Add binned k_ratio to df for plotting
+# Add binned k_ratio for violin plots
 df["x_bin"] = pd.cut(df["k_ratio"], np.arange(0, 1.01, 0.1))
 
 id_vars = ["graph_seed", "mod_seed", "n_nodes", "difficulty", "mod", "k_ratio", "x_bin"]
-value_vars = ["f1", "f1_err", "shd_score", "sid_score", "parent_aid_score", "oset_aid_score"]
+# 0-is-better metrics only (omit raw f1; use f1_err)
+value_vars = ["f1_err", "shd_score", "sid_score", "parent_aid_score", "oset_aid_score"]
 df = df.melt(
-    id_vars=id_vars, 
+    id_vars=id_vars,
     value_vars=value_vars,
     var_name="metric",
-    value_name="value"
-    )
+    value_name="value",
+)
 
 print(df.head())
 
-# PRIMARY OVERVIEW
-# Create a FacetGrid line plot with enhanced styling, titles, and labels
-g = sns.relplot(
-    kind="line", 
-    data=df, 
-    x="k_ratio", 
-    y="value", 
-    hue="n_nodes", 
-    row="mod", 
-    col="metric", 
-    errorbar=("ci", 95),
-    height=4, 
-    aspect=1.5,
-    facet_kws={'margin_titles': True}
-)
+out_dir = PathsConfig.outputs_dir
+out_dir.mkdir(parents=True, exist_ok=True)
 
-# Set axis labels and a global figure title
-g.set_axis_labels("k ratio (per mod type)", "Score")
-g.set_titles(row_template='{row_name}', col_template='{col_name}')  # show metric and mod in faceted axes
-g.figure.subplots_adjust(top=0.88)
-g.figure.suptitle("Metric Scores by k Ratio, n_nodes, Modification Type", fontsize=16, y=0.99)
-
-# Improve legend
-g._legend.set_title("n_nodes")
-
-# Make ticks a bit larger and rotate x labels for clarity
-for ax in g.axes.flat:
-    ax.tick_params(axis='both', which='major', labelsize=10)
-    for label in ax.get_xticklabels():
-        label.set_rotation(30)
-        label.set_ha('right')
-
-# Save and close
-g.savefig("outputs/part-0/k_ratio_vs_score.png", bbox_inches="tight")
-plt.close("all")
-
-
-# ======== VIOLIN PLOTS ========
-# k_ratio vs score, violin plot per n for each mod
-
-# overlay sns.pointplot (mean per bin, dodge matched) and connect means as the trend line. Three violins (N=4/16/64) per ratio bin. Save one figure per metric (5 figures).
-# For each metric, plot violin+pointplot (one figure per metric, saved)
-
+# Stable ordering
+difficulties = [d for d in DataConfig.difficulty if d in set(df["difficulty"])]
+mods = [m for m in (DataConfig.edge_modifications + DataConfig.node_modifications) if m in set(df["mod"])]
 unique_n_nodes = sorted(df["n_nodes"].unique())
 palette = sns.color_palette("Set2", len(unique_n_nodes))
-# dodge needs >= 2 hue levels; with a single n_nodes value it divides by (n-1)=0
-point_dodge = 0.4 if len(unique_n_nodes) > 1 else False
+analysis_metrics = list(value_vars)
 
-for metric in value_vars:
-    fig, axes = plt.subplots(
-        nrows=len(df["mod"].unique()), 
-        ncols=1, 
-        figsize=(14, 4 * len(df["mod"].unique())),
-        sharex=True,
+
+def _style_xticklabels(ax, rotation=30):
+    ax.tick_params(axis="both", which="major", labelsize=10)
+    for label in ax.get_xticklabels():
+        label.set_rotation(rotation)
+        label.set_ha("right")
+
+
+# ===== PRIMARY OVERVIEW (one figure per difficulty) =====
+print("Generating primary overview...")
+for diff in difficulties:
+    df_diff = df[df["difficulty"] == diff]
+    g = sns.relplot(
+        kind="line",
+        data=df_diff,
+        x="k_ratio",
+        y="value",
+        hue="n_nodes",
+        row="mod",
+        col="metric",
+        errorbar=("ci", 95),
+        height=4,
+        aspect=1.5,
+        facet_kws={"margin_titles": True},
+        palette=palette,
     )
-    if len(df["mod"].unique()) == 1:
-        axes = [axes]
-    for i, mod in enumerate(df["mod"].unique()):
-        ax = axes[i]
-        # Filter for this mod+metric
-        df_sub = df[(df["metric"] == metric) & (df["mod"] == mod)]
-        # violinplot (distribution in each bin by n_nodes)
-        sns.violinplot(
-            data=df_sub,
-            x="x_bin",
-            y="value",
-            hue="n_nodes",
-            split=False,
-            dodge=True,
-            density_norm="width",
-            inner=None,
-            ax=ax,
-            palette=palette,
-            cut=0,
+    g.set_axis_labels("k ratio (per mod type)", "Score (0 = perfect)")
+    g.set_titles(row_template="{row_name}", col_template="{col_name}")
+    g.figure.subplots_adjust(top=0.94)
+    g.figure.suptitle(
+        f"Metric scores vs k ratio — difficulty={diff}",
+        fontsize=16,
+        y=0.995,
+    )
+    if g.legend is not None:
+        g.legend.set_title("n_nodes")
+    for ax in g.axes.flat:
+        _style_xticklabels(ax)
+    g.savefig(out_dir / f"k_ratio_vs_score_{diff}.png", bbox_inches="tight")
+    plt.close("all")
+
+
+# ======== VIOLIN PLOTS (one figure per metric × difficulty) ========
+# Median trend lines skip empty bins in the data but still connect across gaps.
+print("Generating violin plots...")
+for diff in difficulties:
+    df_diff = df[df["difficulty"] == diff]
+    for metric in value_vars:
+        fig, axes = plt.subplots(
+            nrows=len(mods),
+            ncols=1,
+            figsize=(14, 4 * max(len(mods), 1)),
+            sharex=True,
         )
-        # Overlay pointplot (means per bin / n_nodes, trend line)
-        sns.pointplot(
-            data=df_sub,
-            x="x_bin",
-            y="value",
-            hue="n_nodes",
-            dodge=point_dodge,  # align with violins when multiple N; False if only one
-            errorbar=("ci", 95),
-            ax=ax,
-            palette=palette,
-            legend=False,
-            markers="d",
-            linestyles="-",
-        )
-        ax.set_title(f"{mod} - {metric}")
-        ax.legend(title="n_nodes", bbox_to_anchor=(1.05, 1), loc='upper left')
-        ax.set_xlabel("k/n_edges or k/n_nodes ratio bin")
-        ax.set_ylabel(metric)
-        labels = [str(cat) for cat in df_sub["x_bin"].cat.categories]
-        ax.set_xticks(range(len(labels)))
-        ax.set_xticklabels(labels, rotation=40, ha='right')
+        axes = np.atleast_1d(axes).ravel()
+        for i, mod in enumerate(mods):
+            ax = axes[i]
+            df_sub = df_diff[(df_diff["metric"] == metric) & (df_diff["mod"] == mod)]
+            if df_sub.empty:
+                ax.set_visible(False)
+                continue
+            sns.violinplot(
+                data=df_sub,
+                x="x_bin",
+                y="value",
+                hue="n_nodes",
+                split=False,
+                dodge=True,
+                density_norm="width",
+                inner=None,
+                ax=ax,
+                palette=palette,
+                cut=0,
+            )
+            # Transparency on violin bodies only (before overlaying median lines)
+            for artist in ax.collections:
+                artist.set_alpha(0.6)
 
-    fig.tight_layout()
-    fig.savefig(f"outputs/part-0/k_ratio_vs_score_violin_{metric}.png")
-    plt.close(fig)
+            # Continuous median line per n_nodes: connect occupied bins across gaps
+            categories = list(df_sub["x_bin"].cat.categories)
+            cat_to_x = {cat: xi for xi, cat in enumerate(categories)}
+            n_hue = len(unique_n_nodes)
+            for j, n in enumerate(unique_n_nodes):
+                sub_n = df_sub[df_sub["n_nodes"] == n]
+                if sub_n.empty:
+                    continue
+                med = sub_n.groupby("x_bin", observed=True)["value"].median().dropna()
+                if med.empty:
+                    continue
+                xs = np.array([cat_to_x[idx] for idx in med.index], dtype=float)
+                if n_hue > 1:
+                    # Match seaborn categorical dodge for hue
+                    xs = xs + (j - (n_hue - 1) / 2) * (0.8 / n_hue)
+                ax.plot(
+                    xs,
+                    med.to_numpy(),
+                    marker="d",
+                    color=palette[j],
+                    linestyle="-",
+                    linewidth=1.5,
+                    zorder=3,
+                    label="_nolegend_",
+                )
+
+            ax.set_title(f"{mod} — {metric} (difficulty={diff})")
+            ax.legend(title="n_nodes", bbox_to_anchor=(1.05, 1), loc="upper left")
+            ax.set_xlabel("k ratio bin")
+            ax.set_ylabel(metric)
+            labels = [str(cat) for cat in categories]
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, rotation=40, ha="right")
+
+        for j in range(i + 1, len(axes)):
+            axes[j].set_visible(False)
+
+        fig.tight_layout()
+        fig.savefig(out_dir / f"k_ratio_vs_score_violin_{metric}_{diff}.png", bbox_inches="tight")
+        plt.close(fig)
 
 
-# ======= CORRELATION HEATMAPS ========
-# Pivot tidy back so the metrics are columns; for each mod, compute Spearman corr.
-# Answers: "do the scores rank the same corruptions the same way?"
-# Use 0-is-better metrics only (drop raw f1 — it's perfectly anti-correlated with f1_err).
-analysis_metrics = [m for m in value_vars if m != "f1"]
-
+# ======= CORRELATION HEATMAPS (one figure per difficulty) ========
 wide = df.pivot_table(
     index=["graph_seed", "mod_seed", "n_nodes", "difficulty", "mod", "k_ratio"],
     columns="metric",
     values="value",
 ).reset_index()
 
-mods = list(df["mod"].unique())
 n_mods = len(mods)
 n_cols = 3
-n_rows = int(np.ceil(n_mods / n_cols))
-fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 4.5 * n_rows))
-axes = np.atleast_1d(axes).ravel()
+n_rows = int(np.ceil(n_mods / n_cols)) if n_mods else 1
 
-for i, mod in enumerate(mods):
-    ax = axes[i]
-    corr = wide.loc[wide["mod"] == mod, analysis_metrics].corr(method="spearman")
-    sns.heatmap(
-        corr,
-        ax=ax,
-        annot=True,
-        fmt=".2f",
-        vmin=-1,
-        vmax=1,
-        cmap="vlag",
-        square=True,
-        cbar=(i == n_mods - 1),
-    )
-    ax.set_title(mod)
-    ax.tick_params(axis="x", rotation=45)
-    ax.tick_params(axis="y", rotation=0)
+print("Generating correlation heatmaps...")
+for diff in difficulties:
+    wide_diff = wide[wide["difficulty"] == diff]
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 4.5 * n_rows))
+    axes = np.atleast_1d(axes).ravel()
 
-for j in range(i + 1, len(axes)):
-    axes[j].set_visible(False)
+    for i, mod in enumerate(mods):
+        ax = axes[i]
+        corr = wide_diff.loc[wide_diff["mod"] == mod, analysis_metrics].corr(method="spearman")
+        sns.heatmap(
+            corr,
+            ax=ax,
+            annot=True,
+            fmt=".2f",
+            vmin=-1,
+            vmax=1,
+            cmap="vlag",
+            square=True,
+            cbar=(i == n_mods - 1),
+        )
+        ax.set_title(mod)
+        ax.tick_params(axis="x", rotation=45)
+        ax.tick_params(axis="y", rotation=0)
 
-fig.suptitle("Metric agreement (Spearman) per modification", fontsize=14, y=1.02)
-fig.tight_layout()
-fig.savefig("outputs/part-0/metric_agreement_spearman.png", bbox_inches="tight")
-plt.close(fig)
+    for j in range(len(mods), len(axes)):
+        axes[j].set_visible(False)
+
+    fig.suptitle(f"Metric agreement (Spearman) — difficulty={diff}", fontsize=14, y=1.02)
+    fig.tight_layout()
+    fig.savefig(out_dir / f"metric_agreement_spearman_{diff}.png", bbox_inches="tight")
+    plt.close(fig)
 
 
-# ======= sensitivity-slope heatmap ======
-# For each (mod, metric, n_nodes) fit slope of value vs k_ratio.
-# Heatmap: rows = mod, cols = metric, one panel per N.
-# Shows which metric is most responsive to each modification.
-
+# ======= SENSITIVITY-SLOPE HEATMAPS (one figure per difficulty; panels = n_nodes) =======
+# how fast does this score get worse as you corrupt more of the graph?
+print("Generating sensitivity-slope heatmaps...")
 slope_rows = []
-for (mod, metric, n_nodes), group in df.groupby(["mod", "metric", "n_nodes"]):
+for (mod, metric, n_nodes, diff), group in df.groupby(["mod", "metric", "n_nodes", "difficulty"]):
     if metric not in analysis_metrics:
         continue
     if group["k_ratio"].nunique() < 2:
         slope = np.nan
     else:
         slope = float(np.polyfit(group["k_ratio"].to_numpy(), group["value"].to_numpy(), 1)[0])
-    slope_rows.append({"mod": mod, "metric": metric, "n_nodes": n_nodes, "slope": slope})
+    slope_rows.append(
+        {"mod": mod, "metric": metric, "n_nodes": n_nodes, "difficulty": diff, "slope": slope}
+    )
 
 slope_df = pd.DataFrame(slope_rows)
-n_node_vals = sorted(slope_df["n_nodes"].unique())
-fig, axes = plt.subplots(
-    1,
-    len(n_node_vals),
-    figsize=(6 * len(n_node_vals), max(4, 0.5 * len(mods))),
-    squeeze=False,
-)
 
-for i, n in enumerate(n_node_vals):
-    ax = axes[0, i]
-    mat = (
-        slope_df[slope_df["n_nodes"] == n]
-        .pivot(index="mod", columns="metric", values="slope")
-        .reindex(index=mods, columns=analysis_metrics)
+for diff in difficulties:
+    slope_diff = slope_df[slope_df["difficulty"] == diff]
+    n_node_vals = sorted(slope_diff["n_nodes"].unique())
+    if not n_node_vals:
+        continue
+    fig, axes = plt.subplots(
+        1,
+        len(n_node_vals),
+        figsize=(6 * len(n_node_vals), max(4, 0.5 * len(mods))),
+        squeeze=False,
     )
-    sns.heatmap(
-        mat,
-        ax=ax,
-        annot=True,
-        fmt=".2f",
-        cmap="mako",
-        cbar=True,
-    )
-    ax.set_title(f"n_nodes = {n}")
-    ax.tick_params(axis="x", rotation=45)
-    ax.tick_params(axis="y", rotation=0)
-    ax.set_ylabel("modification" if i == 0 else "")
+    for i, n in enumerate(n_node_vals):
+        ax = axes[0, i]
+        mat = (
+            slope_diff[slope_diff["n_nodes"] == n]
+            .pivot(index="mod", columns="metric", values="slope")
+            .reindex(index=mods, columns=analysis_metrics)
+        )
+        sns.heatmap(mat, ax=ax, annot=True, fmt=".2f", cmap="mako", cbar=True)
+        ax.set_title(f"n_nodes = {n}")
+        ax.tick_params(axis="x", rotation=45)
+        ax.tick_params(axis="y", rotation=0)
+        ax.set_ylabel("modification" if i == 0 else "")
 
-fig.suptitle("Sensitivity slope (d score / d k_ratio)", fontsize=14, y=1.02)
-fig.tight_layout()
-fig.savefig("outputs/part-0/sensitivity_slope_heatmap.png", bbox_inches="tight")
-plt.close(fig)
+    fig.suptitle(f"Sensitivity slope (d score / d k_ratio) — difficulty={diff}", fontsize=14, y=1.02)
+    fig.tight_layout()
+    fig.savefig(out_dir / f"sensitivity_slope_heatmap_{diff}.png", bbox_inches="tight")
+    plt.close(fig)
+
+print(f"Wrote figures to {out_dir} (one set per difficulty: {difficulties})")
